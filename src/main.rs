@@ -108,7 +108,6 @@ async fn main() -> std::io::Result<()> {
     let json_ld = serde_json::to_string(&kit.json_ld_blocks).unwrap_or_else(|_| "[]".into());
     let llms: &'static [u8] = Box::leak(kit.llms_txt().into_bytes().into_boxed_slice());
     const ICON: &[u8] = include_bytes!("icon.svg");
-    const OG: &[u8] = include_bytes!("og.svg");
     let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
 
     FlowApp::new()
@@ -123,7 +122,6 @@ async fn main() -> std::io::Result<()> {
         .with_stylesheet("/css/pdfforge.css")
         .static_asset("/llms.txt", llms, "text/plain; charset=utf-8")
         .static_asset("/icon.svg", ICON, "image/svg+xml")
-        .static_asset("/og.svg", OG, "image/svg+xml")
         .with_public_dir(public)
         .with_pwa(FlowPwaConfig {
             name: "PDFForge".into(),
