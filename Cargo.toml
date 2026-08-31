@@ -1,0 +1,17 @@
+[package]
+name = "pdfforge"
+version = "0.1.0"
+edition = "2021"
+description = "Merge, split, compress, PDF to JPG, and PDF to text — no account."
+
+[dependencies]
+resuma = { git = "https://github.com/GoldevLab/resuma.git" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum = { version = "0.8", features = ["multipart"] }
+getrandom = "0.3"
+tempfile = "3"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+pdq = "0.5"
