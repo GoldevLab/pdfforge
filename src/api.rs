@@ -16,7 +16,7 @@ use crate::ops::{self, FileOut, MAX_UPLOAD_BYTES};
 use crate::stage;
 
 static SLOTS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
-const RATE_MAX: usize = 10;
+const RATE_MAX: usize = 30;
 const RATE_WINDOW: Duration = Duration::from_secs(60);
 
 #[derive(Serialize)]
@@ -104,7 +104,11 @@ fn gate_files(files: Vec<(Vec<u8>, String)>, ip: &str, min: usize) -> Result<Vec
     if files.len() < min {
         return Err(fail(
             StatusCode::BAD_REQUEST,
-            "Attach a PDF in the file field.".into(),
+            if min >= 2 {
+                "Drop at least two PDFs.".into()
+            } else {
+                "Attach a PDF in the file field.".into()
+            },
         ));
     }
     let mut total = 0usize;
@@ -382,7 +386,7 @@ fn cors<T: IntoResponse>(status: StatusCode, body: T) -> Response {
     );
     h.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("content-type"),
+        HeaderValue::from_static("content-type, x-resuma-csrf"),
     );
     h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     res

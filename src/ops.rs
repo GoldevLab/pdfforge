@@ -26,11 +26,20 @@ pub struct FileOut {
     pub extra: String,
 }
 
-pub fn reject_unsupported(bytes: &[u8]) -> Result<(), String> {
-    if bytes.len() < 5 || !bytes.starts_with(b"%PDF") {
+pub fn pdf_payload(bytes: &[u8]) -> Result<&[u8], String> {
+    let start = bytes
+        .windows(4)
+        .position(|w| w == b"%PDF")
+        .ok_or_else(|| "That file is not a PDF.".to_string())?;
+    let slice = &bytes[start..];
+    if slice.len() < 5 {
         return Err("That file is not a PDF.".into());
     }
-    Ok(())
+    Ok(slice)
+}
+
+pub fn reject_unsupported(bytes: &[u8]) -> Result<(), String> {
+    pdf_payload(bytes).map(|_| ())
 }
 
 pub fn stem_filename(name: &str) -> String {
@@ -61,9 +70,9 @@ fn workdir() -> Result<TempDir, String> {
 }
 
 fn write_pdf(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
-    reject_unsupported(bytes)?;
+    let payload = pdf_payload(bytes)?;
     let path = dir.join(name);
-    fs::write(&path, bytes).map_err(|e| format!("Could not write a temp PDF: {e}"))?;
+    fs::write(&path, payload).map_err(|e| format!("Could not write a temp PDF: {e}"))?;
     Ok(path)
 }
 
@@ -81,6 +90,40 @@ fn parse_range(raw: &str) -> Result<PageRangeGroup, String> {
     let s = raw.trim();
     let s = if s.is_empty() { "1-z" } else { s };
     PageRangeGroup::parse(s).map_err(|e| format!("Invalid page range ({s}): {e}"))
+}
+
+fn range_error(err: pdq::PdfOpsError, _pages_in: u32) -> String {
+    match err {
+        pdq::PdfOpsError::Range(pdq::PageRangeError::OutOfBounds { page, page_count }) => {
+            format!("Page {page} is past the end of this PDF ({page_count} pages).")
+        }
+        pdq::PdfOpsError::Range(e) => format!("Invalid page range: {e}"),
+        other => format!("Render failed: {other}"),
+    }
+}
+
+fn resolve_range(group: &PageRangeGroup, pages_in: u32) -> Result<Vec<usize>, String> {
+    group
+        .resolve(pages_in as usize)
+        .map_err(|e| match e {
+            pdq::PageRangeError::OutOfBounds { page, page_count } => {
+                format!("Page {page} is past the end of this PDF ({page_count} pages).")
+            }
+            other => format!("Invalid page range: {other}"),
+        })
+}
+
+fn sort_page_files(paths: &mut [PathBuf]) {
+    paths.sort_by(|a, b| {
+        let num = |p: &Path| {
+            p.file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|s| s.rsplit('-').next())
+                .and_then(|n| n.parse::<u32>().ok())
+                .unwrap_or(0)
+        };
+        num(a).cmp(&num(b)).then_with(|| a.cmp(b))
+    });
 }
 
 /// Whole-document rewrite: drop unreferenced objects (pdq `1-z` split).
@@ -164,7 +207,7 @@ pub fn split(bytes: &[u8], range: &str, each_page: bool) -> Result<FileOut, Stri
                     && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("page-"))
             })
             .collect();
-        names.sort();
+        sort_page_files(&mut names);
         if names.is_empty() {
             return Err("No pages came out of that split.".into());
         }
@@ -186,10 +229,12 @@ pub fn split(bytes: &[u8], range: &str, each_page: bool) -> Result<FileOut, Stri
         });
     }
     let out = dir.path().join("part.pdf");
+    let group = parse_range(range)?;
+    resolve_range(&group, pages_in)?;
     pdq::split(
         &input,
         &[SplitOutput {
-            range: parse_range(range)?,
+            range: group,
             path: out.clone(),
         }],
     )
@@ -219,6 +264,13 @@ pub fn to_jpg(bytes: &[u8], range: &str, dpi: u32) -> Result<FileOut, String> {
     } else {
         parse_range(range)?
     };
+    let selected = resolve_range(&pages, pages_in)?;
+    if selected.len() as u32 > MAX_RENDER_PAGES {
+        return Err(format!(
+            "Render at most {MAX_RENDER_PAGES} pages at a time. This range is {} pages.",
+            selected.len()
+        ));
+    }
     let pattern = dir
         .path()
         .join("page-%d.png")
@@ -232,14 +284,14 @@ pub fn to_jpg(bytes: &[u8], range: &str, dpi: u32) -> Result<FileOut, String> {
             pages: Some(pages),
         },
     )
-    .map_err(|e| format!("Render failed: {e}"))?;
+    .map_err(|e| range_error(e, pages_in))?;
     let mut pngs: Vec<PathBuf> = fs::read_dir(dir.path())
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("png"))
         .collect();
-    pngs.sort();
+    sort_page_files(&mut pngs);
     if pngs.is_empty() {
         return Err("No pages rendered. Try a simpler PDF or a smaller range.".into());
     }
@@ -286,7 +338,9 @@ pub fn to_text(bytes: &[u8], range: &str) -> Result<FileOut, String> {
     let pages = if range.trim().is_empty() {
         None
     } else {
-        Some(parse_range(range)?)
+        let group = parse_range(range)?;
+        resolve_range(&group, pages_in)?;
+        Some(group)
     };
     let pages_out = pdq::extract_text(
         &input,
@@ -368,6 +422,9 @@ mod tests {
     fn rejects_non_pdf() {
         assert!(reject_unsupported(b"not a pdf").is_err());
         assert!(reject_unsupported(b"%PDF-1.4").is_ok());
+        let mut bom = b"\xef\xbb\xbf".to_vec();
+        bom.extend_from_slice(b"%PDF-1.4");
+        assert!(reject_unsupported(&bom).is_ok());
     }
 
     #[test]
@@ -418,5 +475,32 @@ mod tests {
         if out.ext == "jpg" {
             assert_eq!(&out.bytes[..2], b"\xff\xd8");
         }
+    }
+
+    #[test]
+    fn to_jpg_rejects_out_of_range() {
+        let err = match to_jpg(&fixture(), "99", 72) {
+            Ok(_) => panic!("expected range error"),
+            Err(e) => e,
+        };
+        assert!(err.to_ascii_lowercase().contains("page"), "{err}");
+    }
+
+    #[test]
+    fn sort_page_files_numeric() {
+        let mut paths = vec![
+            PathBuf::from("page-10.png"),
+            PathBuf::from("page-2.png"),
+            PathBuf::from("page-1.png"),
+        ];
+        sort_page_files(&mut paths);
+        assert_eq!(
+            paths,
+            vec![
+                PathBuf::from("page-1.png"),
+                PathBuf::from("page-2.png"),
+                PathBuf::from("page-10.png"),
+            ]
+        );
     }
 }

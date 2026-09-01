@@ -46,7 +46,7 @@ fn result_block(download: &'static str) -> View {
             <p class="result-stats" data-stats=""></p>
             <pre class="result-text" data-text="" hidden=""></pre>
             <img data-preview="" alt="Preview" hidden="" />
-            <a class="btn btn-primary" data-download="" download="">{download}</a>
+            <a class="btn btn-primary" data-download="" data-r-full="" download="">{download}</a>
         </div>
     }
 }
@@ -180,7 +180,7 @@ pub fn tools_nav() -> View {
             }
         })
         .collect();
-    let app_on = path == "/app" || path.starts_with("/app/");
+    let app_on = path == "/app";
     let app_class = if app_on {
         "tool-nav-link is-active"
     } else {
