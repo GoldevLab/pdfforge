@@ -20,6 +20,7 @@
     const preview = result?.querySelector("[data-preview]");
     const textEl = result?.querySelector("[data-text]");
     let files = [];
+    let abortCtl = null;
 
     const csrfHeaders = () => {
       const headers = {};
@@ -52,6 +53,7 @@
       }
       files = tool === "merge" ? next.slice(0, 8) : next.slice(0, 1);
       setError("");
+      if (result) result.hidden = true;
       if (nameEl) {
         nameEl.textContent = files.map((f) => f.name).join(", ");
       }
@@ -89,6 +91,10 @@
     });
     input?.addEventListener("change", () => pick(input.files));
 
+    download?.addEventListener("click", (e) => {
+      if (!download.getAttribute("href")) e.preventDefault();
+    });
+
     form?.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!files.length) {
@@ -101,6 +107,8 @@
       }
       setError("");
       if (result) result.hidden = true;
+      abortCtl?.abort();
+      abortCtl = new AbortController();
       busy(true);
       try {
         const body = new FormData();
@@ -115,7 +123,13 @@
         if (range) body.append("range", range);
         if (mode) body.append("mode", mode);
         if (dpi) body.append("dpi", dpi);
-        const r = await fetch(endpoint, { method: "POST", headers: csrfHeaders(), body });
+        const r = await fetch(endpoint, {
+          method: "POST",
+          headers: csrfHeaders(),
+          body,
+          credentials: "same-origin",
+          signal: abortCtl.signal,
+        });
         const data = await r.json().catch(() => ({}));
         if (!r.ok || !data.ok) {
           throw new Error(data.error || (r.status === 413 ? "File is too large." : r.status === 429 ? "Too many requests." : "Request failed."));
@@ -139,7 +153,7 @@
           }
         }
         if (preview) {
-          if (data.mime === "image/jpeg" && data.url) {
+          if ((data.mime || "").startsWith("image/jpeg") && data.url) {
             preview.hidden = false;
             preview.src = data.url;
           } else {
@@ -152,6 +166,7 @@
           download.setAttribute("download", data.filename || "download");
         }
       } catch (ex) {
+        if (ex.name === "AbortError") return;
         setError(ex.message || "Request failed.");
       } finally {
         busy(false);
@@ -166,8 +181,8 @@
     tryBoot();
   }
   document.addEventListener("resuma:navigate", () => {
-    const root = document.getElementById("pdf-app");
-    if (root) delete root.dataset.ready;
-    tryBoot();
+    queueMicrotask(tryBoot);
+    requestAnimationFrame(tryBoot);
   });
+  new MutationObserver(tryBoot).observe(document.documentElement, { childList: true, subtree: true });
 })();

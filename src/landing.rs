@@ -222,7 +222,7 @@ pub fn page(tool: Tool, surface: Surface) -> View {
                 <div class="faq-list">{faq}</div>
             </section>
             {crate::ads::slot("landing-faq", "infeed")}
-            <section class="features" aria-labelledby="more-title">
+            <section class="related-tools" aria-labelledby="more-title">
                 <h2 id="more-title">"Finished? Other PDFForge tools"</h2>
                 <ul class="feature-grid">{more}</ul>
             </section>

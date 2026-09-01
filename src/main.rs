@@ -102,7 +102,7 @@ fn seo_kit() -> SeoKit {
 async fn main() -> std::io::Result<()> {
     let kit = seo_kit();
     let head = format!(
-        "{}<link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><script type=\"module\" src=\"/js/pdfforge.js?v=1\"></script>",
+        "{}<link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><script type=\"module\" src=\"/js/pdfforge.js?v=2\"></script>",
         kit.head_extras()
     );
     let json_ld = serde_json::to_string(&kit.json_ld_blocks).unwrap_or_else(|_| "[]".into());
@@ -131,7 +131,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0e1218".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-1".into(),
+            cache_version: "pdf-2".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),

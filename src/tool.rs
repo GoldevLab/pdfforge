@@ -161,21 +161,36 @@ fn to_text() -> View {
 }
 
 pub fn tools_nav() -> View {
+    let path = current_request()
+        .map(|r| r.path)
+        .unwrap_or_else(|| "/".into());
     let links: Vec<View> = Tool::all()
         .into_iter()
         .map(|t| {
             let href = t.path();
             let label = t.nav_label();
+            let on_app = path == t.app_path();
+            let class = if on_app {
+                "tool-nav-link is-active"
+            } else {
+                "tool-nav-link"
+            };
             view! {
-                <NavLink href={href} class="tool-nav-link" activeClass="is-active">{label}</NavLink>
+                <NavLink href={href} class={class} activeClass="is-active">{label}</NavLink>
             }
         })
         .collect();
+    let app_on = path == "/app" || path.starts_with("/app/");
+    let app_class = if app_on {
+        "tool-nav-link is-active"
+    } else {
+        "tool-nav-link"
+    };
     view! {
         <nav class="tool-nav" aria-label="PDF tools">
             <NavLink href="/" class="tool-nav-link" activeClass="is-active" exact=true>"Home"</NavLink>
             {links}
-            <NavLink href="/app" class="tool-nav-link" activeClass="is-active">"App"</NavLink>
+            <NavLink href="/app" class={app_class} activeClass="is-active" exact=true>"App"</NavLink>
         </nav>
     }
 }

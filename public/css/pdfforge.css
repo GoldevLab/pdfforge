@@ -587,8 +587,9 @@ select:focus-visible {
 }
 
 .app-shell .howto,
-.app-shell .faq,
-.app-shell .features { display: none; }
+.app-shell .faq { display: none; }
+
+.related-tools { padding: 0.6rem 0 1.6rem; }
 
 @media (max-width: 520px) {
   .controls { grid-template-columns: 1fr; }

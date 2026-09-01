@@ -213,8 +213,9 @@ pub fn to_jpg(bytes: &[u8], range: &str, dpi: u32) -> Result<FileOut, String> {
             "This PDF has {pages_in} pages. Enter a range (for example 1-3). Max {MAX_RENDER_PAGES} pages per render."
         ));
     }
+    let last = pages_in.min(MAX_RENDER_PAGES).max(1);
     let pages = if range.trim().is_empty() {
-        parse_range(&format!("1-{MAX_RENDER_PAGES}"))?
+        parse_range(&format!("1-{last}"))?
     } else {
         parse_range(range)?
     };
@@ -395,6 +396,27 @@ mod tests {
     fn extract_text_mentions_hello() {
         let out = to_text(&fixture(), "").expect("text");
         let s = String::from_utf8_lossy(&out.bytes);
-        assert!(s.to_ascii_lowercase().contains("hello") || s.contains("PDFForge") || s.contains("Page"));
+        assert!(
+            s.to_ascii_lowercase().contains("hello")
+                || s.contains("PDFForge")
+                || s.contains("Page")
+        );
+    }
+
+    #[test]
+    fn split_each_page_zips_or_pdf() {
+        let out = split(&fixture(), "", true).expect("burst");
+        assert!(out.ext == "zip" || out.ext == "pdf");
+        assert!(!out.bytes.is_empty());
+    }
+
+    #[test]
+    fn to_jpg_default_range() {
+        let out = to_jpg(&fixture(), "", 72).expect("jpg");
+        assert!(out.ext == "jpg" || out.ext == "zip");
+        assert!(!out.bytes.is_empty());
+        if out.ext == "jpg" {
+            assert_eq!(&out.bytes[..2], b"\xff\xd8");
+        }
     }
 }
