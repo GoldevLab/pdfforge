@@ -62,6 +62,7 @@ pub fn page(_req: FlowRequest) -> View {
                     </details>
                 </div>
             </section>
+            {crate::landing::sister_apps()}
         </main>
     }
 }

@@ -208,7 +208,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0c1018".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-6".into(),
+            cache_version: "pdf-7".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),
