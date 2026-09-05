@@ -1,8 +1,14 @@
 use resuma::prelude::*;
 
 use crate::family::Tool;
+use crate::landing::canonical_url;
 
 pub fn page(_req: FlowRequest) -> View {
+    set_page_title("PDFForge — merge, split, compress, JPG to PDF, PDF to JPG and text");
+    set_page_description(
+        "Free PDF tools: compress, merge, split, JPG to PDF, PDF to JPG, extract text. No account.",
+    );
+    set_page_canonical(canonical_url("/"));
     let cards: Vec<View> = Tool::all().into_iter().map(tool_card).collect();
     view! {
         <main class="home-page home-hub" lang="en">
@@ -10,15 +16,13 @@ pub fn page(_req: FlowRequest) -> View {
                 <p class="eyebrow">"PDF tools"</p>
                 <h1>"What do you want to do with the PDF?"</h1>
                 <p class="hero-lead">
-                    "Compress, merge, split, turn pages into JPG, or extract text. No account, no watermark. Up to 20 MB."
+                    "Compress, merge, split, JPG to PDF, PDF to JPG, or extract text. No account, no watermark. Up to 20 MB."
                 </p>
             </section>
-            {crate::ads::slot("home-hero", "infeed")}
             <section class="tool-pick" aria-labelledby="tools-title">
                 <h2 id="tools-title">"Tools"</h2>
                 <div class="tool-grid">{cards}</div>
             </section>
-            {crate::ads::slot("home-mid", "infeed")}
             <section class="howto" aria-labelledby="howto-title">
                 <h2 id="howto-title">"How it works"</h2>
                 <ol class="howto-grid">
@@ -47,6 +51,10 @@ pub fn page(_req: FlowRequest) -> View {
                     <details>
                         <summary>"Is compress a 200 KB target?"</summary>
                         <p>"No. That is UnderKb for photos. PDF compress here rewrites the file and drops unused objects."</p>
+                    </details>
+                    <details>
+                        <summary>"Can I turn photos into a PDF?"</summary>
+                        <p>"Yes. Open JPG to PDF. PNG works too. Each image is one A4 page."</p>
                     </details>
                     <details>
                         <summary>"Is PDF to text OCR?"</summary>

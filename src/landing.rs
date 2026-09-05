@@ -18,6 +18,7 @@ impl Tool {
             Self::Compress => "Compress PDF online, free | PDFForge",
             Self::Merge => "Merge PDF files online, free | PDFForge",
             Self::Split => "Split a PDF by page range | PDFForge",
+            Self::FromJpg => "Convert JPG to PDF online, free | PDFForge",
             Self::ToJpg => "Convert PDF to JPG online | PDFForge",
             Self::ToText => "Extract text from a PDF | PDFForge",
         }
@@ -34,6 +35,9 @@ impl Tool {
             Self::Split => {
                 "Keep a page range or burst every page into a zip. No account."
             }
+            Self::FromJpg => {
+                "Turn JPG or PNG images into a PDF. One image per page. No account. Up to 12 files, 20 MB each."
+            }
             Self::ToJpg => {
                 "Turn PDF pages into JPG. One image or a zip. Pure-Rust renderer, no account."
             }
@@ -48,6 +52,7 @@ impl Tool {
             Self::Compress => "Smaller PDF",
             Self::Merge => "One file",
             Self::Split => "Pages out",
+            Self::FromJpg => "Images in",
             Self::ToJpg => "Raster pages",
             Self::ToText => "Plain text",
         }
@@ -58,6 +63,7 @@ impl Tool {
             Self::Compress => "Compress a PDF",
             Self::Merge => "Merge PDF files",
             Self::Split => "Split a PDF",
+            Self::FromJpg => "Convert JPG to PDF",
             Self::ToJpg => "Convert PDF to JPG",
             Self::ToText => "Extract text from a PDF",
         }
@@ -73,6 +79,9 @@ impl Tool {
             }
             Self::Split => {
                 "Keep 1-3, 4-z, or the last page with r1. Burst mode writes one PDF per page and zips them when there is more than one."
+            }
+            Self::FromJpg => {
+                "Drop photos or scans. Each file becomes one A4 page, centered. PNG is saved as JPEG inside the PDF. Order follows the picker."
             }
             Self::ToJpg => {
                 "Hayro (pure Rust) paints each page. 110 DPI is the default. Leave the range blank to render the first 12 pages."
@@ -99,6 +108,11 @@ impl Tool {
                 ("Drop one PDF", "Same 20 MB cap as the rest of PDFForge."),
                 ("Range or burst", "A range stays one PDF. Burst (max 40 pages) becomes a zip of one-page files."),
                 ("Download", "Open the result, then jump to compress or JPG if you still need those."),
+            ],
+            Self::FromJpg => &[
+                ("Drop JPG or PNG", "Up to 12 files, 20 MB each. Hold Ctrl or Shift to pick a stack."),
+                ("One page each", "We fit the image on A4. We do not OCR or vectorize."),
+                ("Download the PDF", "Then compress or merge if you still need those."),
             ],
             Self::ToJpg => &[
                 ("Drop the PDF", "Vector pages and simple scans work best."),
@@ -127,6 +141,10 @@ impl Tool {
                 ("What does 4-z mean?", "From page 4 through the last page. r1 is the last page; r2-r1 is the last two."),
                 ("Why a zip?", "Bursting many pages as separate downloads is awkward in the browser. One zip is one click."),
             ],
+            Self::FromJpg => &[
+                ("Do you keep EXIF?", "The JPEG inside the PDF is a re-encode. Camera metadata is not copied."),
+                ("HEIC from iPhone?", "Export JPG first, or use UnderKb, then drop the JPG here."),
+            ],
             Self::ToJpg => &[
                 ("Is this print quality?", "No. It is a screen-resolution raster for email, CMS, or a quick preview."),
                 ("CMYK or spot colors?", "The renderer maps them as best it can. Proofing is not the goal."),
@@ -139,9 +157,62 @@ impl Tool {
     }
 }
 
+pub fn public_origin() -> String {
+    std::env::var("SITE_URL")
+        .ok()
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| s.starts_with("http://") || s.starts_with("https://"))
+        .unwrap_or_else(|| "https://pdfforge.fly.dev".into())
+}
+
+pub fn canonical_url(path: &str) -> String {
+    format!("{}{path}", public_origin())
+}
+
+pub fn seo_footer_links() -> View {
+    view! {
+        <nav class="seo-links" aria-label="PDFForge tools">
+            <NavLink href="/pdf-compress">"Compress"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/pdf-merge">"Merge"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/pdf-split">"Split"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/jpg-to-pdf">"JPG→PDF"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/pdf-to-jpg">"PDF→JPG"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/pdf-to-text">"Text"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/privacy">"Privacy"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/terms">"Terms"</NavLink>
+        </nav>
+    }
+}
+
+pub fn sister_apps_links() -> View {
+    view! {
+        <p class="sister-apps-links">
+            <span>"Also from us:"</span>
+            " "
+            <a href="https://youtubetotext.fly.dev" rel="noopener">"YouTubeForge"</a>
+            <span aria-hidden="true">" · "</span>
+            <a href="https://underkb.fly.dev" rel="noopener">"UnderKb"</a>
+            <span aria-hidden="true">" · "</span>
+            <a href="https://placaqr.fly.dev" rel="noopener">"PlacaQR"</a>
+            <span aria-hidden="true">" · "</span>
+            <a href="https://billloom.fly.dev" rel="noopener">"Billloom"</a>
+        </p>
+    }
+}
+
 pub fn page(tool: Tool, surface: Surface) -> View {
     set_page_title(tool.title());
     set_page_description(tool.description());
+    if surface == Surface::Seo {
+        set_page_canonical(canonical_url(tool.path()));
+    }
 
     let faq_ld = json!({
         "@context": "https://schema.org",
@@ -157,7 +228,7 @@ pub fn page(tool: Tool, surface: Surface) -> View {
         "@type": "WebPage",
         "name": tool.title(),
         "description": tool.description(),
-        "url": format!("https://pdfforge.fly.dev{}", tool.path())
+        "url": canonical_url(tool.path())
     });
 
     let howto: Vec<View> = tool
@@ -187,31 +258,26 @@ pub fn page(tool: Tool, surface: Surface) -> View {
     let more = more_tools(tool);
     let form = tool::form(tool);
     let class = if surface == Surface::App {
+        // `/app/*` mirrors the SEO landing: keep it out of the index and point
+        // the canonical at the ranking URL so the two never compete.
+        set_page_robots("noindex, follow");
+        set_page_canonical(canonical_url(tool.path()));
         "home-page app-shell"
     } else {
+        // Page-scoped JSON-LD in <head> (with the CSP nonce) replaces the kit's
+        // site-wide blocks so a tool page carries exactly one FAQPage.
+        set_page_json_ld(json!([page_ld, faq_ld]).to_string());
         "home-page"
-    };
-    let seo_block = if surface == Surface::Seo {
-        view! {
-            {View::raw(format!(
-                r#"<script type="application/ld+json">{}</script><script type="application/ld+json">{}</script>"#,
-                page_ld, faq_ld
-            ))}
-        }
-    } else {
-        view! { <span class="sr-only" hidden=""></span> }
     };
 
     view! {
         <main class={class} lang="en">
-            {seo_block}
             <section class="hero">
                 <p class="eyebrow">{tool.eyebrow()}</p>
                 <h1>{tool.h1()}</h1>
                 <p class="hero-lead">{tool.lead()}</p>
                 {form}
             </section>
-            {crate::ads::slot("landing-hero", "infeed")}
             <section class="howto" aria-labelledby="howto-title">
                 <h2 id="howto-title">"How to use it"</h2>
                 <ol class="howto-grid">{howto}</ol>
@@ -221,7 +287,6 @@ pub fn page(tool: Tool, surface: Surface) -> View {
                 <h2 id="faq-title">"FAQ"</h2>
                 <div class="faq-list">{faq}</div>
             </section>
-            {crate::ads::slot("landing-faq", "infeed")}
             <section class="related-tools" aria-labelledby="more-title">
                 <h2 id="more-title">"Finished? Other PDFForge tools"</h2>
                 <ul class="feature-grid">{more}</ul>

@@ -12,8 +12,13 @@ RESUMA_CSP=0 RESUMA_BODY_LIMIT=26214400 cargo run
 
 | Path | Role |
 |---|---|
+Default theme is **Press** (ink/cobalt). Theme picker also offers official Resuma palettes.
+
+| Path | Role |
+|---|---|
 | `/` | Hub |
-| `/pdf-compress` `/pdf-merge` `/pdf-split` `/pdf-to-jpg` `/pdf-to-text` | SEO landings + tool |
+| `/pdf-compress` `/pdf-merge` `/pdf-split` `/jpg-to-pdf` `/pdf-to-jpg` `/pdf-to-text` | SEO landings + tool |
+| `/privacy` `/terms` | Legal |
 | `/app` `/app/compress` … | Tool-only (no article) |
 
 APIs: `POST /api/compress`, `/api/merge`, `/api/split` (`range`, `mode=each`), `/api/to-jpg` (`range`, `dpi`), `/api/to-text` (`range`). Downloads `GET /d/{id}`.

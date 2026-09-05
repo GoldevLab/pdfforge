@@ -44,6 +44,13 @@
     const name = f.name || "";
     return t === "application/pdf" || t === "application/x-pdf" || /\.pdf$/i.test(name);
   };
+  const isImage = (f) => {
+    const t = (f.type || "").toLowerCase();
+    const name = f.name || "";
+    return t === "image/jpeg" || t === "image/jpg" || t === "image/pjpeg" || t === "image/png"
+      || /\.(jpe?g|png)$/i.test(name);
+  };
+  const manyFiles = (tool) => tool === "merge" || tool === "from-jpg";
 
   const busy = (on) => {
     const el = rootEl();
@@ -60,16 +67,17 @@
     const el = syncTool();
     if (!el) return;
     const tool = el.dataset.tool || "compress";
-    const next = Array.from(list || []).filter(isPdf);
+    const acceptImages = tool === "from-jpg";
+    const next = Array.from(list || []).filter(acceptImages ? isImage : isPdf);
     if (!next.length) {
-      setError("Choose a PDF (application/pdf).");
+      setError(acceptImages ? "Choose a JPG or PNG." : "Choose a PDF (application/pdf).");
       return;
     }
     if (next.some((f) => f.size > 20 * 1024 * 1024)) {
       setError("A file is over 20 MB.");
       return;
     }
-    files = tool === "merge" ? next.slice(0, 8) : next.slice(0, 1);
+    files = manyFiles(tool) ? next.slice(0, acceptImages ? 12 : 8) : next.slice(0, 1);
     setError("");
     const result = el.querySelector("[data-result]");
     if (result) result.hidden = true;
@@ -150,6 +158,10 @@
       setError("Drop at least two PDFs.");
       return;
     }
+    if (tool === "from-jpg" && !files.length) {
+      setError("Drop JPG or PNG files first.");
+      return;
+    }
     setError("");
     if (result) result.hidden = true;
     abortCtl?.abort();
@@ -158,7 +170,7 @@
     busy(true);
     try {
       const body = new FormData();
-      if (tool === "merge") {
+      if (tool === "merge" || tool === "from-jpg") {
         files.forEach((f) => body.append("file", f));
       } else {
         body.append("file", files[0]);

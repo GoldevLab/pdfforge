@@ -142,6 +142,50 @@ fn gate_files(files: Vec<(Vec<u8>, String)>, ip: &str, min: usize) -> Result<Vec
     Ok(files)
 }
 
+fn gate_images(files: Vec<(Vec<u8>, String)>, ip: &str) -> Result<Vec<(Vec<u8>, String)>, Response> {
+    if files.is_empty() {
+        return Err(fail(
+            StatusCode::BAD_REQUEST,
+            "Drop at least one JPG or PNG.".into(),
+        ));
+    }
+    if files.len() > crate::imgpdf::MAX_IMAGE_FILES {
+        return Err(fail(
+            StatusCode::BAD_REQUEST,
+            format!("Convert at most {} images at a time.", crate::imgpdf::MAX_IMAGE_FILES),
+        ));
+    }
+    let mut total = 0usize;
+    for (bytes, _) in &files {
+        if bytes.is_empty() {
+            return Err(fail(StatusCode::BAD_REQUEST, "Empty file.".into()));
+        }
+        if bytes.len() > MAX_UPLOAD_BYTES {
+            return Err(fail(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "A file is over 20 MB.".into(),
+            ));
+        }
+        total = total.saturating_add(bytes.len());
+        if let Err(e) = crate::imgpdf::reject_non_image(bytes) {
+            return Err(fail(StatusCode::UNPROCESSABLE_ENTITY, e));
+        }
+    }
+    if total > MAX_UPLOAD_BYTES * 2 {
+        return Err(fail(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "Those files together are too large.".into(),
+        ));
+    }
+    if !rate_allow(ip) {
+        return Err(fail(
+            StatusCode::TOO_MANY_REQUESTS,
+            "Too many requests. Wait a minute and try again.".into(),
+        ));
+    }
+    Ok(files)
+}
+
 async fn run_cpu<T, E>(job: impl FnOnce() -> Result<T, E> + Send + 'static) -> Result<T, Response>
 where
     T: Send + 'static,
@@ -232,7 +276,9 @@ pub async fn compress_upload(
         Ok(v) => v,
         Err(r) => return r,
     };
-    let (bytes, name) = files.into_iter().next().unwrap();
+    let Some((bytes, name)) = files.into_iter().next() else {
+        return fail(StatusCode::BAD_REQUEST, "Attach a PDF in the file field.".into());
+    };
     let orig = bytes.len();
     let stem = format!("{}-compressed", ops::stem_filename(&name));
     match run_cpu(move || ops::compress(&bytes)).await {
@@ -262,6 +308,27 @@ pub async fn merge_upload(
     }
 }
 
+pub async fn from_jpg_upload(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Response {
+    let ip = client_ip(&headers, Some(addr));
+    let parts = match take_parts(&mut multipart).await {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let files = match gate_images(parts.files, &ip) {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    let orig: usize = files.iter().map(|(b, _)| b.len()).sum();
+    match run_cpu(move || crate::imgpdf::from_images(&files)).await {
+        Ok(out) => staged(out, "images", orig, false),
+        Err(r) => r,
+    }
+}
+
 pub async fn split_upload(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
@@ -278,7 +345,9 @@ pub async fn split_upload(
         Ok(v) => v,
         Err(r) => return r,
     };
-    let (bytes, name) = files.into_iter().next().unwrap();
+    let Some((bytes, name)) = files.into_iter().next() else {
+        return fail(StatusCode::BAD_REQUEST, "Attach a PDF in the file field.".into());
+    };
     let orig = bytes.len();
     let stem = format!("{}-split", ops::stem_filename(&name));
     match run_cpu(move || ops::split(&bytes, &range, each)).await {
@@ -303,7 +372,9 @@ pub async fn jpg_upload(
         Ok(v) => v,
         Err(r) => return r,
     };
-    let (bytes, name) = files.into_iter().next().unwrap();
+    let Some((bytes, name)) = files.into_iter().next() else {
+        return fail(StatusCode::BAD_REQUEST, "Attach a PDF in the file field.".into());
+    };
     let orig = bytes.len();
     let stem = format!("{}-pages", ops::stem_filename(&name));
     match run_cpu(move || ops::to_jpg(&bytes, &range, dpi)).await {
@@ -327,7 +398,9 @@ pub async fn text_upload(
         Ok(v) => v,
         Err(r) => return r,
     };
-    let (bytes, name) = files.into_iter().next().unwrap();
+    let Some((bytes, name)) = files.into_iter().next() else {
+        return fail(StatusCode::BAD_REQUEST, "Attach a PDF in the file field.".into());
+    };
     let orig = bytes.len();
     let stem = format!("{}-text", ops::stem_filename(&name));
     match run_cpu(move || ops::to_text(&bytes, &range)).await {

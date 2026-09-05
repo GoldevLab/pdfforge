@@ -4,7 +4,7 @@ use resuma::prelude::*;
 
 use crate::family::Tool;
 
-fn dropzone(title: &'static str, hint: &'static str, multiple: bool) -> View {
+fn dropzone(title: &'static str, hint: &'static str, accept: &'static str, multiple: bool) -> View {
     if multiple {
         view! {
             <label class="drop" data-drop="">
@@ -13,7 +13,7 @@ fn dropzone(title: &'static str, hint: &'static str, multiple: bool) -> View {
                     data-file=""
                     name="file"
                     type="file"
-                    accept="application/pdf,.pdf"
+                    accept={accept}
                     multiple=""
                 />
                 <span class="drop-title">{title}</span>
@@ -29,7 +29,7 @@ fn dropzone(title: &'static str, hint: &'static str, multiple: bool) -> View {
                     data-file=""
                     name="file"
                     type="file"
-                    accept="application/pdf,.pdf"
+                    accept={accept}
                 />
                 <span class="drop-title">{title}</span>
                 <span class="drop-hint" data-filename="">{hint}</span>
@@ -56,6 +56,7 @@ pub fn form(tool: Tool) -> View {
         Tool::Compress => compress(),
         Tool::Merge => merge(),
         Tool::Split => split(),
+        Tool::FromJpg => from_jpg(),
         Tool::ToJpg => to_jpg(),
         Tool::ToText => to_text(),
     }
@@ -65,7 +66,7 @@ fn compress() -> View {
     view! {
         <div id="pdf-app" data-tool="compress" data-endpoint="/api/compress" data-idle="Compress" data-busy="Rewriting…" data-empty="Drop or choose a PDF first.">
             <form class="hero-form" data-form="" method="post" action="/api/compress" enctype="multipart/form-data">
-                {dropzone("Drop a PDF, or click to choose", "PDF · max 20 MB", false)}
+                {dropzone("Drop a PDF, or click to choose", "PDF · max 20 MB", "application/pdf,.pdf", false)}
                 <p class="hint">"We rewrite the file and drop unused objects. Scanned photos inside the PDF stay as they are."</p>
                 <p class="hint form-error" data-error="" hidden="" role="alert" aria-live="polite"></p>
                 <button type="submit" class="btn btn-primary btn-wide" data-submit="">"Compress"</button>
@@ -79,7 +80,7 @@ fn merge() -> View {
     view! {
         <div id="pdf-app" data-tool="merge" data-endpoint="/api/merge" data-idle="Merge" data-busy="Merging…" data-empty="Drop at least two PDFs.">
             <form class="hero-form" data-form="" method="post" action="/api/merge" enctype="multipart/form-data">
-                {dropzone("Drop two or more PDFs", "Up to 8 files · 20 MB each", true)}
+                {dropzone("Drop two or more PDFs", "Up to 8 files · 20 MB each", "application/pdf,.pdf", true)}
                 <p class="hint">"Order follows the order you selected in the file picker."</p>
                 <p class="hint form-error" data-error="" hidden="" role="alert" aria-live="polite"></p>
                 <button type="submit" class="btn btn-primary btn-wide" data-submit="">"Merge"</button>
@@ -89,11 +90,25 @@ fn merge() -> View {
     }
 }
 
+fn from_jpg() -> View {
+    view! {
+        <div id="pdf-app" data-tool="from-jpg" data-endpoint="/api/from-jpg" data-idle="Convert" data-busy="Building PDF…" data-empty="Drop JPG or PNG files first.">
+            <form class="hero-form" data-form="" method="post" action="/api/from-jpg" enctype="multipart/form-data">
+                {dropzone("Drop JPG or PNG files", "Up to 12 images · 20 MB each", "image/jpeg,image/png,.jpg,.jpeg,.png", true)}
+                <p class="hint">"Picker order is page order. Each image is one A4 page."</p>
+                <p class="hint form-error" data-error="" hidden="" role="alert" aria-live="polite"></p>
+                <button type="submit" class="btn btn-primary btn-wide" data-submit="">"Convert to PDF"</button>
+            </form>
+            {result_block("Download PDF")}
+        </div>
+    }
+}
+
 fn split() -> View {
     view! {
         <div id="pdf-app" data-tool="split" data-endpoint="/api/split" data-idle="Split" data-busy="Splitting…" data-empty="Drop or choose a PDF first.">
             <form class="hero-form" data-form="" method="post" action="/api/split" enctype="multipart/form-data">
-                {dropzone("Drop a PDF to split", "PDF · max 20 MB", false)}
+                {dropzone("Drop a PDF to split", "PDF · max 20 MB", "application/pdf,.pdf", false)}
                 <div class="controls">
                     <label>
                         "Page range"
@@ -120,7 +135,7 @@ fn to_jpg() -> View {
     view! {
         <div id="pdf-app" data-tool="jpg" data-endpoint="/api/to-jpg" data-idle="Convert" data-busy="Rendering…" data-empty="Drop or choose a PDF first.">
             <form class="hero-form" data-form="" method="post" action="/api/to-jpg" enctype="multipart/form-data">
-                {dropzone("Drop a PDF to turn into JPG", "One JPG, or a zip if several pages", false)}
+                {dropzone("Drop a PDF to turn into JPG", "One JPG, or a zip if several pages", "application/pdf,.pdf", false)}
                 <div class="controls">
                     <label>
                         "Pages"
@@ -144,7 +159,7 @@ fn to_text() -> View {
     view! {
         <div id="pdf-app" data-tool="text" data-endpoint="/api/to-text" data-idle="Extract" data-busy="Reading…" data-empty="Drop or choose a PDF first.">
             <form class="hero-form" data-form="" method="post" action="/api/to-text" enctype="multipart/form-data">
-                {dropzone("Drop a PDF to extract text", "Selectable text only — not OCR", false)}
+                {dropzone("Drop a PDF to extract text", "Selectable text only — not OCR", "application/pdf,.pdf", false)}
                 <div class="controls">
                     <label>
                         "Pages (optional)"
