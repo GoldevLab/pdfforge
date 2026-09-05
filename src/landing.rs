@@ -284,6 +284,12 @@ pub fn sister_apps_links() -> View {
     }
 }
 
+pub fn hero_particles() -> View {
+    view! {
+        <div class="hero-particles" data-hero-particles="" aria-hidden="true"></div>
+    }
+}
+
 pub fn page(tool: Tool, surface: Surface) -> View {
     set_page_title(tool.title());
     set_page_description(tool.description());
@@ -347,14 +353,28 @@ pub fn page(tool: Tool, surface: Surface) -> View {
         "home-page"
     };
 
+    let hero_copy = view! {
+        <section class="hero">
+            <p class="eyebrow">{tool.eyebrow()}</p>
+            <h1>{tool.h1()}</h1>
+            <p class="hero-lead">{tool.lead()}</p>
+            {form}
+        </section>
+    };
+    let hero = if surface == Surface::App {
+        hero_copy
+    } else {
+        view! {
+            <div class="hero-wrap">
+                {hero_particles()}
+                {hero_copy}
+            </div>
+        }
+    };
+
     view! {
         <main class={class} lang="en">
-            <section class="hero">
-                <p class="eyebrow">{tool.eyebrow()}</p>
-                <h1>{tool.h1()}</h1>
-                <p class="hero-lead">{tool.lead()}</p>
-                {form}
-            </section>
+            {hero}
             <section class="howto" aria-labelledby="howto-title">
                 <h2 id="howto-title">"How to use it"</h2>
                 <ol class="howto-grid">{howto}</ol>

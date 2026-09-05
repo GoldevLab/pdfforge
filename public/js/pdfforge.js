@@ -237,3 +237,181 @@
     }
   });
 })();
+
+(() => {
+  let stopHero = null;
+  const mountPressDust = () => {
+    if (typeof stopHero === "function") {
+      stopHero();
+      stopHero = null;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const root = document.querySelector("[data-hero-particles]");
+    if (!root) return;
+    const canvas = document.createElement("canvas");
+    canvas.className = "hero-particles-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    root.replaceChildren(canvas);
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    const COUNT = window.matchMedia("(max-width: 640px)").matches ? 42 : 72;
+    const motes = Array.from({ length: COUNT }, () => {
+      const roll = Math.random();
+      return {
+        kind: roll < 0.42 ? "sheet" : roll < 0.72 ? "fiber" : "ink",
+        x: Math.random(),
+        y: Math.random(),
+        z: 0.28 + Math.random() * 0.72,
+        rot: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.35,
+        vx: (Math.random() - 0.5) * 0.016,
+        vy: 0.01 + Math.random() * 0.026,
+      };
+    });
+
+    let w = 0;
+    let h = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    let raf = 0;
+    let last = 0;
+    let accent = "#3b82f6";
+    let ink = "#93c5fd";
+
+    const readColors = () => {
+      const cs = getComputedStyle(document.documentElement);
+      accent = (cs.getPropertyValue("--accent") || "#3b82f6").trim() || "#3b82f6";
+      ink = (cs.getPropertyValue("--primary") || "#93c5fd").trim() || "#93c5fd";
+    };
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = root.clientWidth;
+      h = root.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const onMove = (e) => {
+      const r = root.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      pointerX = (e.clientX - r.left) / r.width - 0.5;
+      pointerY = (e.clientY - r.top) / r.height - 0.5;
+    };
+    const tick = (t) => {
+      if (!root.isConnected) {
+        if (typeof stopHero === "function") stopHero();
+        return;
+      }
+      if (document.hidden) {
+        raf = 0;
+        last = 0;
+        return;
+      }
+      const dt = Math.min(0.032, last ? (t - last) / 1000 : 0.016);
+      last = t;
+      ctx.clearRect(0, 0, w, h);
+
+      for (const d of motes) {
+        d.x += d.vx * dt * 18 * (0.45 + d.z);
+        d.y += d.vy * dt * 18 * (0.55 + d.z * 0.5);
+        d.rot += d.spin * dt;
+
+        const dx = d.x - (pointerX + 0.5);
+        const dy = d.y - (pointerY + 0.5);
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 < 0.045 && dist2 > 0.0002) {
+          const f = (0.045 - dist2) * 0.09;
+          d.x += dx * f;
+          d.y += dy * f;
+        }
+
+        if (d.y > 1.08) {
+          d.y = -0.06;
+          d.x = Math.random();
+        } else if (d.y < -0.08) {
+          d.y = 1.05;
+        }
+        if (d.x > 1.08) d.x = -0.04;
+        else if (d.x < -0.08) d.x = 1.04;
+
+        const x = d.x * w;
+        const y = d.y * h;
+        ctx.globalAlpha = 0.16 + d.z * 0.38;
+        ctx.strokeStyle = accent;
+        ctx.fillStyle = d.kind === "ink" ? ink : accent;
+
+        if (d.kind === "sheet") {
+          const pw = 8 + d.z * 12;
+          const ph = pw * 1.38;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(d.rot);
+          ctx.lineWidth = 0.75;
+          ctx.globalAlpha *= 0.45;
+          ctx.strokeRect(-pw / 2 + 2.2, -ph / 2 - 2.4, pw, ph);
+          ctx.globalAlpha = 0.16 + d.z * 0.38;
+          ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+          ctx.globalAlpha *= 0.28;
+          ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+          ctx.globalAlpha = 0.22 + d.z * 0.3;
+          ctx.fillStyle = accent;
+          ctx.fillRect(-pw / 2, -ph / 2, pw, Math.max(1.6, ph * 0.14));
+          ctx.restore();
+        } else if (d.kind === "fiber") {
+          const len = 8 + d.z * 14;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(d.rot);
+          ctx.lineWidth = 0.7 + d.z * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(-len / 2, 0);
+          ctx.lineTo(len / 2, 0);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, 0.9 + d.z * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+    const onVis = () => {
+      if (!document.hidden && !raf && root.isConnected) raf = requestAnimationFrame(tick);
+    };
+    const themeWatch = new MutationObserver(readColors);
+    themeWatch.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    readColors();
+    resize();
+    window.addEventListener("resize", resize, { passive: true });
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("visibilitychange", onVis);
+    raf = requestAnimationFrame(tick);
+    stopHero = () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      last = 0;
+      themeWatch.disconnect();
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("visibilitychange", onVis);
+      canvas.remove();
+      stopHero = null;
+    };
+  };
+  const tryHero = () => mountPressDust();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", tryHero, { once: true });
+  } else {
+    tryHero();
+  }
+  document.addEventListener("resuma:navigate", () => requestAnimationFrame(tryHero));
+})();
