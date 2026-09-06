@@ -1,0 +1,14 @@
+Name: PDFForge
+Short (≤132): Compress, merge, split PDFs. Opens PDFForge. Free, no account.
+Category: Productivity
+
+Single purpose: Toolbar shortcuts to PDFForge tools. Right-click a .pdf link to open Compress.
+
+Privacy: https://pdfforge.fly.dev/privacy
+Support: https://pdfforge.fly.dev/extension
+
+Permission justification:
+- contextMenus: open PDFForge on a PDF link
+- pdfforge.fly.dev: open the matching tool page
+
+Do not put AdSense in the extension. Ads are only on the website.

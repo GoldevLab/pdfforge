@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "PDFForge",
+  "version": "1.0.0",
+  "description": "Compress, merge, split PDFs. JPG to PDF and back. Opens PDFForge. Free, no account.",
+  "homepage_url": "https://pdfforge.fly.dev/extension",
+  "permissions": ["contextMenus"],
+  "host_permissions": ["https://pdfforge.fly.dev/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "PDFForge tools",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

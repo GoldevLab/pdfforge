@@ -20,6 +20,7 @@ pub fn page(_req: FlowRequest) -> View {
         .collect();
     view! {
         <main class="home-page app-shell" lang="en">
+            {crate::landing::hero_particles()}
             <section class="hero">
                 <p class="eyebrow">"App"</p>
                 <h1>"PDFForge"</h1>

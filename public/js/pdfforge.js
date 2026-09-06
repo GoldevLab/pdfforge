@@ -284,19 +284,18 @@
       accent = (cs.getPropertyValue("--accent") || "#3b82f6").trim() || "#3b82f6";
       ink = (cs.getPropertyValue("--primary") || "#93c5fd").trim() || "#93c5fd";
     };
+    const host = root.parentElement || root;
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = root.clientWidth;
-      h = root.clientHeight;
+      w = host.clientWidth;
+      h = host.clientHeight;
       if (!w || !h) return;
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
-      canvas.style.width = w + "px";
-      canvas.style.height = h + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     const onMove = (e) => {
-      const r = root.getBoundingClientRect();
+      const r = host.getBoundingClientRect();
       if (!r.width || !r.height) return;
       pointerX = (e.clientX - r.left) / r.width - 0.5;
       pointerY = (e.clientY - r.top) / r.height - 0.5;
@@ -340,24 +339,24 @@
 
         const x = d.x * w;
         const y = d.y * h;
-        ctx.globalAlpha = 0.16 + d.z * 0.38;
+        ctx.globalAlpha = 0.28 + d.z * 0.5;
         ctx.strokeStyle = accent;
         ctx.fillStyle = d.kind === "ink" ? ink : accent;
 
         if (d.kind === "sheet") {
-          const pw = 8 + d.z * 12;
+          const pw = 10 + d.z * 16;
           const ph = pw * 1.38;
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(d.rot);
-          ctx.lineWidth = 0.75;
-          ctx.globalAlpha *= 0.45;
+          ctx.lineWidth = 0.9;
+          ctx.globalAlpha *= 0.7;
           ctx.strokeRect(-pw / 2 + 2.2, -ph / 2 - 2.4, pw, ph);
-          ctx.globalAlpha = 0.16 + d.z * 0.38;
+          ctx.globalAlpha = 0.28 + d.z * 0.5;
           ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
-          ctx.globalAlpha *= 0.28;
+          ctx.globalAlpha *= 0.35;
           ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
-          ctx.globalAlpha = 0.22 + d.z * 0.3;
+          ctx.globalAlpha = 0.4 + d.z * 0.35;
           ctx.fillStyle = accent;
           ctx.fillRect(-pw / 2, -ph / 2, pw, Math.max(1.6, ph * 0.14));
           ctx.restore();
@@ -391,6 +390,8 @@
     });
     readColors();
     resize();
+    const sizeWatch = typeof ResizeObserver === "function" ? new ResizeObserver(resize) : null;
+    sizeWatch?.observe(host);
     window.addEventListener("resize", resize, { passive: true });
     window.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("visibilitychange", onVis);
@@ -400,6 +401,7 @@
       raf = 0;
       last = 0;
       themeWatch.disconnect();
+      sizeWatch?.disconnect();
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("visibilitychange", onVis);

@@ -12,16 +12,14 @@ pub fn page(_req: FlowRequest) -> View {
     let cards: Vec<View> = Tool::all().into_iter().map(tool_card).collect();
     view! {
         <main class="home-page home-hub" lang="en">
-            <div class="hero-wrap">
-                {crate::landing::hero_particles()}
-                <section class="hero">
-                    <p class="eyebrow">"PDF tools"</p>
-                    <h1>"What do you want to do with the PDF?"</h1>
-                    <p class="hero-lead">
-                        "Compress, merge, split, JPG to PDF, PDF to JPG, or extract text. No account, no watermark. Up to 20 MB."
-                    </p>
-                </section>
-            </div>
+            {crate::landing::hero_particles()}
+            <section class="hero">
+                <p class="eyebrow">"PDF tools"</p>
+                <h1>"What do you want to do with the PDF?"</h1>
+                <p class="hero-lead">
+                    "Compress, merge, split, JPG to PDF, PDF to JPG, or extract text. No account, no watermark. Up to 20 MB."
+                </p>
+            </section>
             <section class="tool-pick" aria-labelledby="tools-title">
                 <h2 id="tools-title">"Tools"</h2>
                 <div class="tool-grid">{cards}</div>

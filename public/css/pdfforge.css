@@ -85,6 +85,7 @@ body {
   max-width: var(--max);
   margin: 0 auto;
   padding: 0.7rem var(--page-pad-end) 0.7rem var(--page-pad);
+  padding-top: max(0.7rem, env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -127,16 +128,11 @@ main {
 
 .hero { padding: 0.4rem 0 1rem; }
 
-.hero-wrap {
+.home-page {
   position: relative;
-  overflow: hidden;
-  margin-block-start: -1.25rem;
-  margin-inline-start: calc(var(--page-pad) * -1);
-  margin-inline-end: calc(var(--page-pad-end) * -1);
-  padding: 1.25rem var(--page-pad-end) 0.25rem var(--page-pad);
-  border-bottom: 1px solid var(--edge);
+  isolation: isolate;
 }
-.hero-wrap::before {
+.home-page::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -151,15 +147,20 @@ main {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
-  opacity: 0.55;
+  overflow: clip;
+  opacity: 0.7;
 }
 .hero-particles-canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
 }
-.hero-wrap .hero { position: relative; z-index: 1; }
+.home-page > :not(.hero-particles) {
+  position: relative;
+  z-index: 1;
+}
 
 .eyebrow {
   margin: 0 0 0.55rem;

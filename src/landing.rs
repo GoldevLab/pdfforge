@@ -169,6 +169,13 @@ pub fn canonical_url(path: &str) -> String {
     format!("{}{path}", public_origin())
 }
 
+pub fn chrome_store_url() -> Option<String> {
+    std::env::var("CHROME_STORE_URL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| s.starts_with("https://"))
+}
+
 pub fn seo_footer_links() -> View {
     view! {
         <nav class="seo-links" aria-label="PDFForge tools">
@@ -187,6 +194,8 @@ pub fn seo_footer_links() -> View {
             <NavLink href="/privacy">"Privacy"</NavLink>
             <span aria-hidden="true">" · "</span>
             <NavLink href="/terms">"Terms"</NavLink>
+            <span aria-hidden="true">" · "</span>
+            <NavLink href="/extension">"Extension"</NavLink>
         </nav>
     }
 }
@@ -212,6 +221,16 @@ const FAMILY: &[(&str, &str, &str)] = &[
         "PlacaQR",
         "3D-printable QR — stand, tile, keychain, or plaque.",
         "https://placaqr.fly.dev",
+    ),
+    (
+        "Linkprobe",
+        "Paste a URL. See which links work and which 404.",
+        "https://linkprobe.fly.dev",
+    ),
+    (
+        "Svgsport",
+        "Paste a page. Download every SVG as a zip.",
+        "https://svgsport.fly.dev",
     ),
     (
         "Billloom",
@@ -353,28 +372,15 @@ pub fn page(tool: Tool, surface: Surface) -> View {
         "home-page"
     };
 
-    let hero_copy = view! {
-        <section class="hero">
-            <p class="eyebrow">{tool.eyebrow()}</p>
-            <h1>{tool.h1()}</h1>
-            <p class="hero-lead">{tool.lead()}</p>
-            {form}
-        </section>
-    };
-    let hero = if surface == Surface::App {
-        hero_copy
-    } else {
-        view! {
-            <div class="hero-wrap">
-                {hero_particles()}
-                {hero_copy}
-            </div>
-        }
-    };
-
     view! {
         <main class={class} lang="en">
-            {hero}
+            {hero_particles()}
+            <section class="hero">
+                <p class="eyebrow">{tool.eyebrow()}</p>
+                <h1>{tool.h1()}</h1>
+                <p class="hero-lead">{tool.lead()}</p>
+                {form}
+            </section>
             <section class="howto" aria-labelledby="howto-title">
                 <h2 id="howto-title">"How to use it"</h2>
                 <ol class="howto-grid">{howto}</ol>

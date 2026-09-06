@@ -44,6 +44,7 @@ impl Tool {
         }
     }
 
+    #[allow(dead_code)]
     pub fn nav_label(self) -> &'static str {
         match self {
             Self::Compress => "Compress",

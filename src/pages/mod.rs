@@ -5,6 +5,7 @@ pub mod app_merge;
 pub mod app_split;
 pub mod app_to_jpg;
 pub mod app_to_text;
+pub mod extension;
 pub mod index;
 pub mod jpg_to_pdf;
 pub mod pdf_compress;

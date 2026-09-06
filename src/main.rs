@@ -7,6 +7,7 @@ mod imgpdf;
 mod landing;
 mod ops;
 mod pages;
+mod site;
 mod stage;
 mod tool;
 
@@ -16,7 +17,16 @@ use resuma::prelude::*;
 use resuma::SeoKit;
 use serde_json::json;
 
-fn chrome(body: View) -> View {
+fn chrome(body: View, ads: bool) -> View {
+    let footer_ad = if ads {
+        view! {
+            <div class="ad-rail ad-rail-end">
+                {crate::ads::slot("footer", "leaderboard")}
+            </div>
+        }
+    } else {
+        view! { <div hidden=""></div> }
+    };
     view! {
         <div class="app">
             <div class="liquid-orbs" aria-hidden="true">
@@ -34,6 +44,7 @@ fn chrome(body: View) -> View {
                 </div>
             </header>
             {body}
+            {footer_ad}
             <footer class="site-footer">
                 {crate::landing::seo_footer_links()}
                 {crate::landing::sister_apps_links()}
@@ -48,7 +59,7 @@ fn chrome(body: View) -> View {
 
 #[layout("/")]
 fn RootLayout() -> View {
-    chrome(view! { <Slot /> })
+    chrome(view! { <Slot /> }, true)
 }
 
 fn not_found() -> View {
@@ -60,7 +71,7 @@ fn not_found() -> View {
                 <NavLink href="/" class="btn btn-primary">"Go home"</NavLink>
             </p>
         </main>
-    })
+    }, false)
 }
 
 fn seo_kit() -> SeoKit {
@@ -103,17 +114,27 @@ fn seo_kit() -> SeoKit {
 async fn main() -> std::io::Result<()> {
     // `with_seo_kit` owns keywords/author/theme-color meta, JSON-LD, and the
     // `/robots.txt` + `/llms.txt` routes (AI crawler policy included).
-    let head = "<link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><script type=\"module\" src=\"/js/pdfforge.js?v=7\"></script>";
+    let head = format!(
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><link rel=\"icon\" href=\"/icons/favicon-32.png\" type=\"image/png\" sizes=\"32x32\" /><link rel=\"apple-touch-icon\" href=\"/icons/apple-touch-icon.png\" sizes=\"180x180\" /><script type=\"module\" src=\"/js/pdfforge.js?v=8\"></script>{}{}",
+        ads::head_snippet(),
+        crate::site::head_extras()
+    );
+    let ads_txt = ads::ads_txt().map(|s| -> &'static [u8] {
+        Box::leak(s.into_bytes().into_boxed_slice())
+    });
     const ICON: &[u8] = include_bytes!("icon.svg");
     let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
 
-    FlowApp::new()
+    let mut serve = FlowServeOptions::default();
+    ads::apply_csp(&mut serve.security.csp);
+
+    let mut app = FlowApp::new()
         .with_title("PDFForge — merge, split, compress, JPG to PDF, PDF to JPG and text")
         .with_description(
             "Free PDF tools: compress, merge, split, JPG to PDF, PDF to JPG, extract text. No account.",
         )
         .with_site_url(crate::landing::public_origin())
-        .with_og_image("/icon.svg")
+        .with_og_image("/og.png")
         .with_head(head)
         .with_seo_kit(seo_kit())
         .with_html_theme(
@@ -122,13 +143,16 @@ async fn main() -> std::io::Result<()> {
                 .cookie("pdfforge_theme")
                 .storage_key("pdfforge-theme"),
         )
-        .with_stylesheet("/css/pdfforge.css")
+        .with_stylesheet("/css/pdfforge.css?v=r1")
         // `/app/*` are noindex mirrors of the SEO landings; keep them out of the sitemap.
         .with_sitemap_exclude(
             std::iter::once("/app").chain(family::Tool::all().into_iter().map(|t| t.app_path())),
         )
-        .static_asset("/icon.svg", ICON, "image/svg+xml")
-        .with_public_dir(public)
+        .static_asset("/icon.svg", ICON, "image/svg+xml");
+    if let Some(body) = ads_txt {
+        app = app.static_asset("/ads.txt", body, "text/plain; charset=utf-8");
+    }
+    app.with_public_dir(public)
         .with_pwa(FlowPwaConfig {
             name: "PDFForge".into(),
             short_name: "PDFForge".into(),
@@ -137,15 +161,20 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0c1018".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-9".into(),
+            cache_version: "pdf-12".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),
             icon_char: Some("P".into()),
             precache_paths: vec![
                 "/themes.css".into(),
-                "/css/pdfforge.css".into(),
-                "/js/pdfforge.js?v=7".into(),
+                "/css/pdfforge.css?v=r1".into(),
+                "/js/pdfforge.js?v=8".into(),
+                "/js/pdfforge-ads.js".into(),
+                "/icon.svg".into(),
+                "/icons/icon-192.png".into(),
+                "/icons/icon-512.png".into(),
+                "/icons/apple-touch-icon.png".into(),
             ],
             shortcuts: vec![
                 PwaShortcut {
@@ -176,6 +205,6 @@ async fn main() -> std::io::Result<()> {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/pages"),
             PagesRegistry,
         )
-        .serve(FlowServeOptions::default())
+        .serve(serve)
         .await
 }

@@ -22,6 +22,7 @@ impl FlowPageRegistry for PagesRegistry {
             ("/app/to-text", "app_to_text"),
             ("/privacy", "privacy"),
             ("/terms", "terms"),
+            ("/extension", "extension"),
         ]
     }
 
@@ -47,6 +48,7 @@ impl FlowPageRegistry for PagesRegistry {
             "app_to_text" => Some(super::app_to_text::page(req)),
             "privacy" => Some(super::privacy::page(req)),
             "terms" => Some(super::terms::page(req)),
+            "extension" => Some(super::extension::page(req)),
             _ => None,
         }
     }

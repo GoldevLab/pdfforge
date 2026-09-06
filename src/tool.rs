@@ -175,6 +175,7 @@ fn to_text() -> View {
     }
 }
 
+#[allow(dead_code)]
 pub fn tools_nav() -> View {
     let path = current_request()
         .map(|r| r.path)
