@@ -149,6 +149,21 @@ async fn main() -> std::io::Result<()> {
             std::iter::once("/app").chain(family::Tool::all().into_iter().map(|t| t.app_path())),
         )
         .static_asset("/icon.svg", ICON, "image/svg+xml");
+    {
+        let contact = crate::site::contact_email()
+            .map(|e| format!("Contact: mailto:{e}\n"))
+            .unwrap_or_default();
+        let body = format!(
+            "{contact}Canonical: https://pdfforge.fly.dev/.well-known/security.txt\nPreferred-Languages: en\nExpires: 2027-12-31T23:59:59Z\n"
+        );
+        let leaked: &'static [u8] = Box::leak(body.into_bytes().into_boxed_slice());
+        app = app.static_asset(
+            "/.well-known/security.txt",
+            leaked,
+            "text/plain; charset=utf-8",
+        );
+    }
+
     if let Some(body) = ads_txt {
         app = app.static_asset("/ads.txt", body, "text/plain; charset=utf-8");
     }
