@@ -12,6 +12,8 @@ primary_region = "dfw"
   RESUMA_DATA_DIR = "/data"
   RESUMA_BODY_LIMIT = "52428800"
   RESUMA_REQUEST_TIMEOUT_SECS = "90"
+  # Canonical origin. When you buy a domain, change this to https://that-domain
+  # and attach the certificate. The app reads SITE_URL for canonicals, sitemap, and llms.txt.
   SITE_URL = "https://pdfforge.fly.dev"
   CARGO_MANIFEST_DIR = "/app"
 

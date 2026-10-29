@@ -23,6 +23,11 @@ impl FlowPageRegistry for PagesRegistry {
             ("/privacy", "privacy"),
             ("/terms", "terms"),
             ("/extension", "extension"),
+            ("/guides", "guides"),
+            ("/guides/compress-pdf", "guide_compress"),
+            ("/guides/merge-pdf", "guide_merge"),
+            ("/guides/jpg-to-pdf", "guide_jpg"),
+            ("/guides/pdf-to-text", "guide_text"),
         ]
     }
 
@@ -49,6 +54,11 @@ impl FlowPageRegistry for PagesRegistry {
             "privacy" => Some(super::privacy::page(req)),
             "terms" => Some(super::terms::page(req)),
             "extension" => Some(super::extension::page(req)),
+            "guides" => Some(super::guides::page(req)),
+            "guide_compress" => Some(super::guide_compress::page(req)),
+            "guide_merge" => Some(super::guide_merge::page(req)),
+            "guide_jpg" => Some(super::guide_jpg::page(req)),
+            "guide_text" => Some(super::guide_text::page(req)),
             _ => None,
         }
     }

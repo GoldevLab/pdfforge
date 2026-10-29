@@ -198,6 +198,9 @@
             || "Request failed."
         );
       }
+      if (typeof window.appEvent === "function") {
+        window.appEvent("job_complete", { tool: tool });
+      }
       if (result) result.hidden = false;
       const nameNode = result?.querySelector("[data-out-name]");
       const stats = result?.querySelector("[data-stats]");
@@ -416,4 +419,14 @@
     tryHero();
   }
   document.addEventListener("resuma:navigate", () => requestAnimationFrame(tryHero));
+})();
+
+(() => {
+  document.addEventListener("resuma:navigate", () => {
+    document.documentElement.classList.remove("is-navigating");
+  });
+  document.addEventListener("click", (e) => {
+    const el = e.target instanceof Element ? e.target.closest("a[data-r-nav]") : null;
+    if (el && el.getAttribute("href")) document.documentElement.classList.add("is-navigating");
+  }, true);
 })();

@@ -1,4 +1,5 @@
 use resuma::prelude::*;
+use serde_json::json;
 
 use crate::family::Tool;
 use crate::landing::canonical_url;
@@ -9,6 +10,7 @@ pub fn page(_req: FlowRequest) -> View {
         "Free PDF tools: compress, merge, split, JPG to PDF, PDF to JPG, extract text. No account.",
     );
     set_page_canonical(canonical_url("/"));
+    set_page_json_ld(home_json_ld());
     let cards: Vec<View> = Tool::all().into_iter().map(tool_card).collect();
     view! {
         <main class="home-page home-hub" lang="en">
@@ -23,6 +25,10 @@ pub fn page(_req: FlowRequest) -> View {
             <section class="tool-pick" aria-labelledby="tools-title">
                 <h2 id="tools-title">"Tools"</h2>
                 <div class="tool-grid">{cards}</div>
+            </section>
+            <section class="tool-pick" aria-labelledby="guides-title">
+                <h2 id="guides-title">"Guides"</h2>
+                {crate::guides::home_strip()}
             </section>
             <section class="howto" aria-labelledby="howto-title">
                 <h2 id="howto-title">"How it works"</h2>
@@ -66,6 +72,43 @@ pub fn page(_req: FlowRequest) -> View {
             {crate::landing::sister_apps()}
         </main>
     }
+}
+
+fn home_json_ld() -> String {
+    let origin = canonical_url("");
+    json!({
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "name": "PDFForge",
+                "url": origin
+            },
+            {
+                "@type": "WebSite",
+                "name": "PDFForge",
+                "url": origin
+            },
+            {
+                "@type": "WebApplication",
+                "name": "PDFForge",
+                "url": origin,
+                "applicationCategory": "UtilitiesApplication",
+                "operatingSystem": "Web",
+                "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+                "featureList": [
+                    "Compress a PDF",
+                    "Merge PDFs",
+                    "Split a PDF",
+                    "Convert JPG to PDF",
+                    "Convert PDF pages to JPG",
+                    "Extract text already in a PDF"
+                ],
+                "description": "Free PDF tools: compress, merge, split, JPG to PDF, PDF to JPG, extract text. No account. Not OCR."
+            }
+        ]
+    })
+    .to_string()
 }
 
 fn tool_card(tool: Tool) -> View {

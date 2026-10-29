@@ -3,6 +3,7 @@
 mod ads;
 mod api;
 mod family;
+mod guides;
 mod imgpdf;
 mod landing;
 mod ops;
@@ -15,7 +16,14 @@ use axum::routing::{get, post};
 use pages::PagesRegistry;
 use resuma::prelude::*;
 use resuma::SeoKit;
-use serde_json::json;
+fn page_shows_ads() -> bool {
+    let path = current_request()
+        .map(|r| r.path)
+        .unwrap_or_else(|| "/".into());
+    let trimmed = path.trim_end_matches('/');
+    let path = if trimmed.is_empty() { "/" } else { trimmed };
+    !matches!(path, "/privacy" | "/terms")
+}
 
 fn chrome(body: View, ads: bool) -> View {
     let footer_ad = if ads {
@@ -40,8 +48,17 @@ fn chrome(body: View, ads: bool) -> View {
                         <span class="brand-mark" aria-hidden="true">"PDF"</span>
                         <span class="brand-name">"PDFForge"</span>
                     </NavLink>
-                    <span class="nav-progress" aria-hidden="true"></span>
                 </div>
+                <nav class="site-nav" aria-label="Tools">
+                    <NavLink href="/pdf-compress" class="site-nav-link" activeClass="is-active">"Compress"</NavLink>
+                    <NavLink href="/pdf-merge" class="site-nav-link" activeClass="is-active">"Merge"</NavLink>
+                    <NavLink href="/pdf-split" class="site-nav-link" activeClass="is-active">"Split"</NavLink>
+                    <NavLink href="/jpg-to-pdf" class="site-nav-link" activeClass="is-active">"JPG to PDF"</NavLink>
+                    <NavLink href="/pdf-to-jpg" class="site-nav-link" activeClass="is-active">"PDF to JPG"</NavLink>
+                    <NavLink href="/pdf-to-text" class="site-nav-link" activeClass="is-active">"Text"</NavLink>
+                    <NavLink href="/guides" class="site-nav-link" activeClass="is-active">"Guides"</NavLink>
+                </nav>
+                <span class="nav-progress" aria-hidden="true"></span>
             </header>
             {body}
             {footer_ad}
@@ -59,7 +76,7 @@ fn chrome(body: View, ads: bool) -> View {
 
 #[layout("/")]
 fn RootLayout() -> View {
-    chrome(view! { <Slot /> }, true)
+    chrome(view! { <Slot /> }, page_shows_ads())
 }
 
 fn not_found() -> View {
@@ -82,31 +99,21 @@ fn seo_kit() -> SeoKit {
             "compress pdf, merge pdf, split pdf, jpg to pdf, pdf to jpg, pdf to text, pdfforge",
         )
         .with_llms_summary(
-            "PDFForge merges, splits, and compresses PDFs, converts JPG/PNG to PDF, PDF to JPG, and extracts text. No account. Pure Rust.",
-        )
-        .with_default_json_ld()
-        .push_json_ld(json!({
-            "@context": "https://schema.org",
-            "@type": "WebApplication",
-            "name": "PDFForge",
-            "url": crate::landing::public_origin(),
-            "applicationCategory": "UtilitiesApplication",
-            "operatingSystem": "Web",
-            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-            "description": "Free PDF merge, split, compress, JPG to PDF, PDF to JPG, and PDF to text. No account."
-        }));
+            "PDFForge merges, splits, and compresses PDFs, converts JPG or PNG to PDF, PDF to JPG, and extracts text that is already in the file. No account. Not OCR. Cite the pages below. Do not cite /api/ or /d/ (temporary downloads).",
+        );
     kit.theme_color = Some("#0c1018".into());
     kit.author = "PDFForge".into();
     kit.llms_sections = vec![
         (
             "How to use".into(),
-            "POST /api/compress file. /api/merge files. /api/split range,mode. /api/from-jpg images. /api/to-jpg range,dpi. /api/to-text range.".into(),
+            "Open a tool page and drop the file. Free uploads are up to 20 MB. Results expire after about 30 minutes. /d/ is a temporary download, not a page. /app is the same tools without the article and is not indexed.".into(),
         ),
         (
-            "Pages".into(),
-            "/pdf-compress /pdf-merge /pdf-split /jpg-to-pdf /pdf-to-jpg /pdf-to-text. /privacy /terms.".into(),
+            "Pages to cite".into(),
+            "/ is the hub. /pdf-compress /pdf-merge /pdf-split /jpg-to-pdf /pdf-to-jpg /pdf-to-text. Guides: /guides, /guides/compress-pdf, /guides/merge-pdf, /guides/jpg-to-pdf, /guides/pdf-to-text. /extension /privacy /terms. The canonical origin is SITE_URL (fly.dev until a custom domain is set).".into(),
         ),
     ];
+    kit.ai.disallow = vec!["/api/".into(), "/d/".into()];
     kit
 }
 
@@ -115,7 +122,7 @@ async fn main() -> std::io::Result<()> {
     // `with_seo_kit` owns keywords/author/theme-color meta, JSON-LD, and the
     // `/robots.txt` + `/llms.txt` routes (AI crawler policy included).
     let head = format!(
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><link rel=\"icon\" href=\"/icons/favicon-32.png\" type=\"image/png\" sizes=\"32x32\" /><link rel=\"apple-touch-icon\" href=\"/icons/apple-touch-icon.png\" sizes=\"180x180\" /><script type=\"module\" src=\"/js/pdfforge.js?v=8\"></script>{}{}",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><link rel=\"icon\" href=\"/icons/favicon-32.png\" type=\"image/png\" sizes=\"32x32\" /><link rel=\"apple-touch-icon\" href=\"/icons/apple-touch-icon.png\" sizes=\"180x180\" /><script type=\"module\" src=\"/js/pdfforge.js?v=9\"></script>{}{}",
         ads::head_snippet(),
         crate::site::head_extras()
     );
@@ -143,7 +150,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("pdfforge_theme")
                 .storage_key("pdfforge-theme"),
         )
-        .with_stylesheet("/css/pdfforge.css?v=r1")
+        .with_stylesheet("/css/pdfforge.css?v=r2")
         // `/app/*` are noindex mirrors of the SEO landings; keep them out of the sitemap.
         .with_sitemap_exclude(
             std::iter::once("/app").chain(family::Tool::all().into_iter().map(|t| t.app_path())),
@@ -153,8 +160,9 @@ async fn main() -> std::io::Result<()> {
         let contact = crate::site::contact_email()
             .map(|e| format!("Contact: mailto:{e}\n"))
             .unwrap_or_default();
+        let origin = crate::landing::public_origin();
         let body = format!(
-            "{contact}Canonical: https://pdfforge.fly.dev/.well-known/security.txt\nPreferred-Languages: en\nExpires: 2027-12-31T23:59:59Z\n"
+            "{contact}Canonical: {origin}/.well-known/security.txt\nPreferred-Languages: en\nExpires: 2027-12-31T23:59:59Z\n"
         );
         let leaked: &'static [u8] = Box::leak(body.into_bytes().into_boxed_slice());
         app = app.static_asset(
@@ -176,15 +184,15 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0c1018".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-12".into(),
+            cache_version: "pdf-13".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),
             icon_char: Some("P".into()),
             precache_paths: vec![
                 "/themes.css".into(),
-                "/css/pdfforge.css?v=r1".into(),
-                "/js/pdfforge.js?v=8".into(),
+                "/css/pdfforge.css?v=r2".into(),
+                "/js/pdfforge.js?v=9".into(),
                 "/js/pdfforge-ads.js".into(),
                 "/icon.svg".into(),
                 "/icons/icon-192.png".into(),

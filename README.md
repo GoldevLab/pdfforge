@@ -17,6 +17,9 @@ Default theme is **Press** (ink/cobalt), locked — no theme picker.
 | `/` | Hub |
 | `/pdf-compress` `/pdf-merge` `/pdf-split` `/jpg-to-pdf` `/pdf-to-jpg` `/pdf-to-text` | SEO landings + tool |
 | `/privacy` `/terms` `/extension` | Legal + Chrome extension |
+| `/guides` | Compress, merge, JPG to PDF, extract text |
+
+The live origin is `SITE_URL` in `fly.toml` (`https://pdfforge.fly.dev` until you buy a domain). Change that one value and attach the certificate. Canonicals, the sitemap, `/llms.txt`, and `security.txt` follow it. Do not invent a domain in the pages.
 | `/app` `/app/compress` … | Tool-only (no article) |
 
 Google AdSense: set `ADSENSE_CLIENT` and `ADSENSE_SLOT` (or per-placement `ADSENSE_SLOT_*`). `/ads.txt` is served when the client is set. Chrome extension lives in `extension/` — zip that folder for the Web Store. After a custom domain: Fly `SITE_URL`, then edit `extension/config.js` + `manifest.json`. `CHROME_STORE_URL` fills the button on `/extension`.

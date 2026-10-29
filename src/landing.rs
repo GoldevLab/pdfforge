@@ -191,6 +191,8 @@ pub fn seo_footer_links() -> View {
             <span aria-hidden="true">" · "</span>
             <NavLink href="/pdf-to-text">"Text"</NavLink>
             <span aria-hidden="true">" · "</span>
+            <NavLink href="/guides">"Guides"</NavLink>
+            <span aria-hidden="true">" · "</span>
             <NavLink href="/privacy">"Privacy"</NavLink>
             <span aria-hidden="true">" · "</span>
             <NavLink href="/terms">"Terms"</NavLink>
@@ -205,12 +207,12 @@ const FAMILY: &[(&str, &str, &str)] = &[
     (
         "YouTubeForge",
         "YouTube transcript, MP3, SRT, and translation.",
-        "https://youtubetotext.fly.dev",
+        "https://forgeyt.com",
     ),
     (
         "UnderKb",
         "Compress images to a real KB target. JPG, WebP, PNG.",
-        "https://underkb.fly.dev",
+        "https://under200kb.com",
     ),
     (
         "PDFForge",
@@ -353,7 +355,13 @@ pub fn page(tool: Tool, surface: Surface) -> View {
     } else {
         // Page-scoped JSON-LD in <head> (with the CSP nonce) replaces the kit's
         // site-wide blocks so a tool page carries exactly one FAQPage.
-        set_page_json_ld(json!([page_ld, faq_ld]).to_string());
+        set_page_json_ld(
+            json!({
+                "@context": "https://schema.org",
+                "@graph": [page_ld, faq_ld]
+            })
+            .to_string(),
+        );
         "home-page"
     };
 
