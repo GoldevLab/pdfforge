@@ -49,7 +49,7 @@ fn chrome(body: View, ads: bool) -> View {
     } else {
         view! { <div hidden=""></div> }
     };
-    let view = view! {
+    view! {
         <div class="app">
             <div class="liquid-orbs" aria-hidden="true">
                 <div class="liquid-blob liquid-blob-a"></div>
@@ -85,9 +85,7 @@ fn chrome(body: View, ads: bool) -> View {
                 </p>
             </footer>
         </div>
-    };
-    crate::ads::finish_ads();
-    view
+    }
 }
 
 #[layout("/")]
@@ -166,7 +164,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("pdfforge_theme")
                 .storage_key("pdfforge-theme"),
         )
-        .with_stylesheet("/css/pdfforge.css?v=r3")
+        .with_stylesheet("/css/pdfforge.css?v=r4")
         // `/app/*` are noindex mirrors of the SEO landings; keep them out of the sitemap.
         .with_sitemap_exclude(
             std::iter::once("/app").chain(family::Tool::all().into_iter().map(|t| t.app_path())),
@@ -189,14 +187,14 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0c1018".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-14".into(),
+            cache_version: "pdf-15".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),
             icon_char: Some("P".into()),
             precache_paths: vec![
                 "/themes.css".into(),
-                "/css/pdfforge.css?v=r3".into(),
+                "/css/pdfforge.css?v=r4".into(),
                 "/js/pdfforge.js?v=10".into(),
                 "/js/pdfforge-ads.js".into(),
                 "/icon.svg".into(),

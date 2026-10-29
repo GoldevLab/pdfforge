@@ -588,6 +588,7 @@ select:focus-visible {
   min-block-size: 90px;
 }
 
+.ad-rail:has(> [hidden]) { display: none; }
 .ad-rail {
   width: 100%;
   max-width: var(--max);

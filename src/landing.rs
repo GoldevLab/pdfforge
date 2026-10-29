@@ -304,7 +304,6 @@ pub fn page(tool: Tool, surface: Surface) -> View {
     }
 
     let faq_ld = json!({
-        "@context": "https://schema.org",
         "@type": "FAQPage",
         "mainEntity": tool.faq().iter().map(|(q, a)| json!({
             "@type": "Question",
@@ -313,7 +312,6 @@ pub fn page(tool: Tool, surface: Surface) -> View {
         })).collect::<Vec<_>>()
     });
     let page_ld = json!({
-        "@context": "https://schema.org",
         "@type": "WebPage",
         "name": tool.title(),
         "description": tool.description(),

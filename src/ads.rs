@@ -124,25 +124,16 @@ pub fn apply_csp(csp: &mut CspConfig) {
 
 thread_local! {
     static CLAIMED: Cell<bool> = const { Cell::new(false) };
-    static ARMED: Cell<bool> = const { Cell::new(false) };
 }
 
-fn arm_ads() {
-    ARMED.with(|armed| {
-        if !armed.get() {
-            armed.set(true);
-            CLAIMED.with(|c| c.set(false));
-        }
-    });
-}
-
-pub fn finish_ads() {
-    ARMED.with(|armed| armed.set(false));
+/// Clear the one-unit flag before the page view is built.
+/// Middleware runs on the same worker thread as the following render.
+pub fn begin_page() {
+    CLAIMED.with(|c| c.set(false));
 }
 
 /// One live AdSense unit per page, even when two placements share a slot id.
 fn claim_page() -> bool {
-    arm_ads();
     CLAIMED.with(|c| {
         if c.get() {
             return false;
@@ -150,6 +141,12 @@ fn claim_page() -> bool {
         c.set(true);
         true
     })
+}
+
+#[middleware]
+async fn reset_ad_slot(req: FlowRequest) -> Result<FlowRequest> {
+    begin_page();
+    Ok(req)
 }
 
 pub fn slot(placement: &'static str, size: &'static str) -> View {
