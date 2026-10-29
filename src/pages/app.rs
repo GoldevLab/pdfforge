@@ -1,8 +1,11 @@
 use resuma::prelude::*;
 
 use crate::family::Tool;
+use crate::landing::canonical_url;
 
 pub fn page(_req: FlowRequest) -> View {
+    set_page_robots("noindex, follow");
+    set_page_canonical(canonical_url("/"));
     let cards: Vec<View> = Tool::all()
         .into_iter()
         .map(|t| {

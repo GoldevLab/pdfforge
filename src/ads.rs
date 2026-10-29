@@ -68,6 +68,7 @@ pub fn head_snippet() -> String {
         Some(id) => format!(
             r#"<link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
 <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net" />
+<meta name="google-adsense-account" content="{id}" />
 <meta name="pdf-adsense-client" content="{id}" />
 <script>
 (function(){{
@@ -104,22 +105,27 @@ pub fn ads_txt() -> Option<String> {
 }
 
 pub fn apply_csp(csp: &mut CspConfig) {
-    csp.strict_dynamic = false;
+    let mut policy = csp.clone().allow_google_adsense();
+    policy.strict_dynamic = false;
     for origin in ADSENSE_ORIGINS {
-        if !csp.script_src.iter().any(|s| s == origin) {
-            csp.script_src.push((*origin).into());
+        if !policy.script_src.iter().any(|s| s == origin) {
+            policy.script_src.push((*origin).into());
         }
-        if !csp.img_src.iter().any(|s| s == origin) {
-            csp.img_src.push((*origin).into());
+        if !policy.img_src.iter().any(|s| s == origin) {
+            policy.img_src.push((*origin).into());
         }
-        if !csp.connect_src.iter().any(|s| s == origin) {
-            csp.connect_src.push((*origin).into());
+        if !policy.connect_src.iter().any(|s| s == origin) {
+            policy.connect_src.push((*origin).into());
         }
-        if !csp.style_src.iter().any(|s| s == origin) {
-            csp.style_src.push((*origin).into());
+        if !policy.style_src.iter().any(|s| s == origin) {
+            policy.style_src.push((*origin).into());
+        }
+        if !policy.frame_src.iter().any(|s| s == origin) {
+            policy.frame_src.push((*origin).into());
         }
     }
-    csp.report_only = true;
+    policy.report_only = true;
+    *csp = policy;
 }
 
 thread_local! {
