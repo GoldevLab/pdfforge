@@ -100,6 +100,29 @@ pub async fn preflight() -> Response {
     cors(StatusCode::NO_CONTENT, ())
 }
 
+pub async fn stats(headers: HeaderMap) -> Response {
+    if !crate::admin_gate::cookie_session_valid(
+        headers.get(header::COOKIE).and_then(|v| v.to_str().ok()),
+    ) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let body = serde_json::to_string(&crate::stats::snapshot()).unwrap_or_else(|_| "{}".into());
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("x-robots-tag"),
+        HeaderValue::from_static("noindex"),
+    );
+    (StatusCode::OK, headers, body).into_response()
+}
+
 fn gate_files(files: Vec<(Vec<u8>, String)>, ip: &str, min: usize) -> Result<Vec<(Vec<u8>, String)>, Response> {
     if files.len() < min {
         return Err(fail(
@@ -224,7 +247,13 @@ where
     }
 }
 
-fn staged(out: FileOut, stem: &str, original_bytes: usize, include_text: bool) -> Response {
+fn staged(
+    out: FileOut,
+    stem: &str,
+    original_bytes: usize,
+    include_text: bool,
+    kind: crate::stats::Kind,
+) -> Response {
     let filename = format!("{stem}.{}", out.ext);
     let text = if include_text && out.mime.starts_with("text/plain") {
         Some(String::from_utf8_lossy(&out.bytes).into_owned())
@@ -245,6 +274,7 @@ fn staged(out: FileOut, stem: &str, original_bytes: usize, include_text: bool) -
             );
         }
     };
+    crate::stats::record(kind);
     cors(
         StatusCode::OK,
         Json(OkBody {
@@ -282,7 +312,7 @@ pub async fn compress_upload(
     let orig = bytes.len();
     let stem = format!("{}-compressed", ops::stem_filename(&name));
     match run_cpu(move || ops::compress(&bytes)).await {
-        Ok(out) => staged(out, &stem, orig, false),
+        Ok(out) => staged(out, &stem, orig, false, crate::stats::Kind::Compress),
         Err(r) => r,
     }
 }
@@ -303,7 +333,7 @@ pub async fn merge_upload(
     };
     let orig: usize = files.iter().map(|(b, _)| b.len()).sum();
     match run_cpu(move || ops::merge(&files)).await {
-        Ok(out) => staged(out, "merged", orig, false),
+        Ok(out) => staged(out, "merged", orig, false, crate::stats::Kind::Merge),
         Err(r) => r,
     }
 }
@@ -324,7 +354,7 @@ pub async fn from_jpg_upload(
     };
     let orig: usize = files.iter().map(|(b, _)| b.len()).sum();
     match run_cpu(move || crate::imgpdf::from_images(&files)).await {
-        Ok(out) => staged(out, "images", orig, false),
+        Ok(out) => staged(out, "images", orig, false, crate::stats::Kind::FromJpg),
         Err(r) => r,
     }
 }
@@ -351,7 +381,7 @@ pub async fn split_upload(
     let orig = bytes.len();
     let stem = format!("{}-split", ops::stem_filename(&name));
     match run_cpu(move || ops::split(&bytes, &range, each)).await {
-        Ok(out) => staged(out, &stem, orig, false),
+        Ok(out) => staged(out, &stem, orig, false, crate::stats::Kind::Split),
         Err(r) => r,
     }
 }
@@ -378,7 +408,7 @@ pub async fn jpg_upload(
     let orig = bytes.len();
     let stem = format!("{}-pages", ops::stem_filename(&name));
     match run_cpu(move || ops::to_jpg(&bytes, &range, dpi)).await {
-        Ok(out) => staged(out, &stem, orig, false),
+        Ok(out) => staged(out, &stem, orig, false, crate::stats::Kind::ToJpg),
         Err(r) => r,
     }
 }
@@ -404,7 +434,7 @@ pub async fn text_upload(
     let orig = bytes.len();
     let stem = format!("{}-text", ops::stem_filename(&name));
     match run_cpu(move || ops::to_text(&bytes, &range)).await {
-        Ok(out) => staged(out, &stem, orig, true),
+        Ok(out) => staged(out, &stem, orig, true, crate::stats::Kind::ToText),
         Err(r) => r,
     }
 }

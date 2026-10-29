@@ -719,6 +719,42 @@ html.is-navigating .nav-progress { opacity: 1; animation: pdf-progress 0.9s ease
 .privacy-page { max-width: 40rem; }
 .privacy-page h2 { margin-top: 1.5rem; }
 
+.live-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.live-stat strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.admin-page { display: grid; gap: 1rem; }
+.admin-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+.admin-stat {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+.admin-stat-value {
+  margin: 0;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.admin-error { color: var(--danger, #e85d4c); }
+.admin-login { display: grid; gap: 0.85rem; max-width: 24rem; }
+
 .site-header::after {
   content: "";
   position: absolute;

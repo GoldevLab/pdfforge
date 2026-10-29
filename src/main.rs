@@ -1,5 +1,7 @@
 //! PDFForge — merge, split, compress, PDF→JPG, PDF→text (Resuma Flow).
 
+mod actions;
+mod admin_gate;
 mod ads;
 mod api;
 mod family;
@@ -10,6 +12,7 @@ mod ops;
 mod pages;
 mod site;
 mod stage;
+mod stats;
 mod tool;
 
 use axum::routing::{get, post};
@@ -31,7 +34,7 @@ fn page_shows_ads() -> bool {
         .unwrap_or_else(|| "/".into());
     let trimmed = path.trim_end_matches('/');
     let path = if trimmed.is_empty() { "/" } else { trimmed };
-    !matches!(path, "/privacy" | "/terms")
+    !matches!(path, "/privacy" | "/terms" | "/admin")
 }
 
 fn chrome(body: View, ads: bool) -> View {
@@ -40,6 +43,27 @@ fn chrome(body: View, ads: bool) -> View {
             .map(|r| r.path)
             .unwrap_or_else(|| "/".into()),
     );
+    let stats_bar = if crate::site::request_is_admin() {
+        let activity = crate::stats::snapshot();
+        let compress = crate::stats::grouped(activity.compress);
+        let merge = crate::stats::grouped(activity.merge);
+        let split = crate::stats::grouped(activity.split);
+        let from_jpg = crate::stats::grouped(activity.from_jpg);
+        let to_jpg = crate::stats::grouped(activity.to_jpg);
+        let to_text = crate::stats::grouped(activity.to_text);
+        view! {
+            <div class="live-stats" aria-live="polite" aria-label="Completed jobs">
+                <span class="live-stat">"Compress "<strong>{compress}</strong></span>
+                <span class="live-stat">"Merge "<strong>{merge}</strong></span>
+                <span class="live-stat">"Split "<strong>{split}</strong></span>
+                <span class="live-stat">"JPG "<strong>{from_jpg}</strong></span>
+                <span class="live-stat">"PDF→JPG "<strong>{to_jpg}</strong></span>
+                <span class="live-stat">"Text "<strong>{to_text}</strong></span>
+            </div>
+        }
+    } else {
+        view! { <div hidden=""></div> }
+    };
     let footer_ad = if ads {
         view! {
             <div class="ad-rail ad-rail-end">
@@ -62,6 +86,7 @@ fn chrome(body: View, ads: bool) -> View {
                         <span class="brand-mark" aria-hidden="true">"PDF"</span>
                         <span class="brand-name">"PDFForge"</span>
                     </NavLink>
+                    {stats_bar}
                 </div>
                 <nav class="site-nav" aria-label="Tools">
                     <NavLink href="/pdf-compress" class="site-nav-link" activeClass="is-active">"Compress"</NavLink>
@@ -127,7 +152,7 @@ fn seo_kit() -> SeoKit {
             "/ is the hub. /pdf-compress /pdf-merge /pdf-split /jpg-to-pdf /pdf-to-jpg /pdf-to-text. Guides: /guides, /guides/compress-pdf, /guides/merge-pdf, /guides/jpg-to-pdf, /guides/pdf-to-text. /extension /privacy /terms. The canonical origin is SITE_URL (fly.dev until a custom domain is set).".into(),
         ),
     ];
-    kit.ai.disallow = vec!["/api/".into(), "/d/".into()];
+    kit.ai.disallow = vec!["/api/".into(), "/d/".into(), "/admin".into()];
     kit
 }
 
@@ -164,10 +189,12 @@ async fn main() -> std::io::Result<()> {
                 .cookie("pdfforge_theme")
                 .storage_key("pdfforge-theme"),
         )
-        .with_stylesheet("/css/pdfforge.css?v=r4")
+        .with_stylesheet("/css/pdfforge.css?v=r5")
         // `/app/*` are noindex mirrors of the SEO landings; keep them out of the sitemap.
         .with_sitemap_exclude(
-            std::iter::once("/app").chain(family::Tool::all().into_iter().map(|t| t.app_path())),
+            std::iter::once("/app")
+                .chain(std::iter::once("/admin"))
+                .chain(family::Tool::all().into_iter().map(|t| t.app_path())),
         )
         .static_asset("/icon.svg", ICON, "image/svg+xml");
     {
@@ -187,14 +214,14 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0c1018".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-15".into(),
+            cache_version: "pdf-16".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),
             icon_char: Some("P".into()),
             precache_paths: vec![
                 "/themes.css".into(),
-                "/css/pdfforge.css?v=r4".into(),
+                "/css/pdfforge.css?v=r5".into(),
                 "/js/pdfforge.js?v=10".into(),
                 "/js/pdfforge-ads.js".into(),
                 "/icon.svg".into(),
@@ -219,6 +246,7 @@ async fn main() -> std::io::Result<()> {
                 .into(),
             manifest_icons: Vec::new(),
         })
+        .route("/api/stats", get(api::stats).options(api::preflight))
         .route("/api/compress", post(api::compress_upload).options(api::preflight))
         .route("/api/merge", post(api::merge_upload).options(api::preflight))
         .route("/api/split", post(api::split_upload).options(api::preflight))

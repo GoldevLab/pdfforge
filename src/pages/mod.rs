@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod app;
 pub mod app_compress;
 pub mod app_from_jpg;
