@@ -75,6 +75,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
+  view-transition-name: site-header;
   background: var(--header-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -332,6 +333,7 @@ h1, h2, h3 {
 .btn-wide { width: 100%; margin-top: 0.35rem; }
 
 .btn:focus-visible,
+.site-nav-link:focus-visible,
 input:focus-visible,
 select:focus-visible {
   outline: 3px solid var(--accent);
@@ -475,6 +477,7 @@ select:focus-visible {
 .faq summary::-webkit-details-marker { display: none; }
 
 .site-footer {
+  view-transition-name: site-footer;
   max-width: var(--max);
   margin: 0 auto;
   padding: 0 var(--page-pad-end) 1.25rem var(--page-pad);
@@ -650,6 +653,10 @@ select:focus-visible {
   html { scroll-behavior: auto; }
   .liquid-blob { animation: none; }
   .hero-particles { display: none; }
+  html.is-navigating .nav-progress { animation: none; }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none; }
 }
 
 .seo-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.2rem 0.15rem; margin: 0 0 0.75rem; }
@@ -710,3 +717,34 @@ html.is-navigating .nav-progress { opacity: 1; animation: pdf-progress 0.9s ease
 .sister-apps .tool-card { min-block-size: 7.5rem; }
 .privacy-page { max-width: 40rem; }
 .privacy-page h2 { margin-top: 1.5rem; }
+
+.site-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+@container site-header scroll-state(stuck: top) {
+  .site-header::after { opacity: 1; }
+}
+.nav-progress { z-index: 1; }
+::view-transition-group(site-header),
+::view-transition-group(site-footer) { animation: none; }
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) { animation: pdf-vt-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+  ::view-transition-new(root) { animation: pdf-vt-in 320ms cubic-bezier(0, 0, 0.2, 1) both; }
+}
+@keyframes pdf-vt-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes pdf-vt-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

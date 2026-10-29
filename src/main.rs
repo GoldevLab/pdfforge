@@ -16,6 +16,15 @@ use axum::routing::{get, post};
 use pages::PagesRegistry;
 use resuma::prelude::*;
 use resuma::SeoKit;
+fn view_transition_name(path: &str) -> String {
+    let slug = path.trim_matches('/');
+    if slug.is_empty() {
+        "home".into()
+    } else {
+        slug.replace('/', "-")
+    }
+}
+
 fn page_shows_ads() -> bool {
     let path = current_request()
         .map(|r| r.path)
@@ -26,6 +35,11 @@ fn page_shows_ads() -> bool {
 }
 
 fn chrome(body: View, ads: bool) -> View {
+    let vt = view_transition_name(
+        &current_request()
+            .map(|r| r.path)
+            .unwrap_or_else(|| "/".into()),
+    );
     let footer_ad = if ads {
         view! {
             <div class="ad-rail ad-rail-end">
@@ -35,7 +49,7 @@ fn chrome(body: View, ads: bool) -> View {
     } else {
         view! { <div hidden=""></div> }
     };
-    view! {
+    let view = view! {
         <div class="app">
             <div class="liquid-orbs" aria-hidden="true">
                 <div class="liquid-blob liquid-blob-a"></div>
@@ -60,7 +74,7 @@ fn chrome(body: View, ads: bool) -> View {
                 </nav>
                 <span class="nav-progress" aria-hidden="true"></span>
             </header>
-            {body}
+            {with_view_transition(vt, vec![Child::View(body)])}
             {footer_ad}
             <footer class="site-footer">
                 {crate::landing::seo_footer_links()}
@@ -71,7 +85,9 @@ fn chrome(body: View, ads: bool) -> View {
                 </p>
             </footer>
         </div>
-    }
+    };
+    crate::ads::finish_ads();
+    view
 }
 
 #[layout("/")]
@@ -122,7 +138,7 @@ async fn main() -> std::io::Result<()> {
     // `with_seo_kit` owns keywords/author/theme-color meta, JSON-LD, and the
     // `/robots.txt` + `/llms.txt` routes (AI crawler policy included).
     let head = format!(
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><link rel=\"icon\" href=\"/icons/favicon-32.png\" type=\"image/png\" sizes=\"32x32\" /><link rel=\"apple-touch-icon\" href=\"/icons/apple-touch-icon.png\" sizes=\"180x180\" /><script type=\"module\" src=\"/js/pdfforge.js?v=9\"></script>{}{}",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" /><link rel=\"icon\" href=\"/icons/favicon-32.png\" type=\"image/png\" sizes=\"32x32\" /><link rel=\"apple-touch-icon\" href=\"/icons/apple-touch-icon.png\" sizes=\"180x180\" /><script type=\"module\" src=\"/js/pdfforge.js?v=10\"></script>{}{}",
         ads::head_snippet(),
         crate::site::head_extras()
     );
@@ -150,26 +166,15 @@ async fn main() -> std::io::Result<()> {
                 .cookie("pdfforge_theme")
                 .storage_key("pdfforge-theme"),
         )
-        .with_stylesheet("/css/pdfforge.css?v=r2")
+        .with_stylesheet("/css/pdfforge.css?v=r3")
         // `/app/*` are noindex mirrors of the SEO landings; keep them out of the sitemap.
         .with_sitemap_exclude(
             std::iter::once("/app").chain(family::Tool::all().into_iter().map(|t| t.app_path())),
         )
         .static_asset("/icon.svg", ICON, "image/svg+xml");
     {
-        let contact = crate::site::contact_email()
-            .map(|e| format!("Contact: mailto:{e}\n"))
-            .unwrap_or_default();
-        let origin = crate::landing::public_origin();
-        let body = format!(
-            "{contact}Canonical: {origin}/.well-known/security.txt\nPreferred-Languages: en\nExpires: 2027-12-31T23:59:59Z\n"
-        );
-        let leaked: &'static [u8] = Box::leak(body.into_bytes().into_boxed_slice());
-        app = app.static_asset(
-            "/.well-known/security.txt",
-            leaked,
-            "text/plain; charset=utf-8",
-        );
+        let contact = crate::site::contact_email();
+        app = app.with_security_txt(crate::landing::public_origin(), contact.as_deref());
     }
 
     if let Some(body) = ads_txt {
@@ -184,15 +189,15 @@ async fn main() -> std::io::Result<()> {
             background_color: "#0c1018".into(),
             start_url: "/".into(),
             scope: "/".into(),
-            cache_version: "pdf-13".into(),
+            cache_version: "pdf-14".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "en".into(),
             icon_char: Some("P".into()),
             precache_paths: vec![
                 "/themes.css".into(),
-                "/css/pdfforge.css?v=r2".into(),
-                "/js/pdfforge.js?v=9".into(),
+                "/css/pdfforge.css?v=r3".into(),
+                "/js/pdfforge.js?v=10".into(),
                 "/js/pdfforge-ads.js".into(),
                 "/icon.svg".into(),
                 "/icons/icon-192.png".into(),

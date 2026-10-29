@@ -1,5 +1,7 @@
 //! Google AdSense. Layout is reserved; live units when ADSENSE_CLIENT + slot are set.
 
+use std::cell::Cell;
+
 use resuma::prelude::*;
 use resuma::server::CspConfig;
 
@@ -120,9 +122,42 @@ pub fn apply_csp(csp: &mut CspConfig) {
     csp.report_only = true;
 }
 
+thread_local! {
+    static CLAIMED: Cell<bool> = const { Cell::new(false) };
+    static ARMED: Cell<bool> = const { Cell::new(false) };
+}
+
+fn arm_ads() {
+    ARMED.with(|armed| {
+        if !armed.get() {
+            armed.set(true);
+            CLAIMED.with(|c| c.set(false));
+        }
+    });
+}
+
+pub fn finish_ads() {
+    ARMED.with(|armed| armed.set(false));
+}
+
+/// One live AdSense unit per page, even when two placements share a slot id.
+fn claim_page() -> bool {
+    arm_ads();
+    CLAIMED.with(|c| {
+        if c.get() {
+            return false;
+        }
+        c.set(true);
+        true
+    })
+}
+
 pub fn slot(placement: &'static str, size: &'static str) -> View {
     let class = format!("ad-slot ad-slot-{size}");
     let live = client_id().zip(slot_id(placement, size));
+    if live.is_some() && !claim_page() {
+        return view! { <div hidden=""></div> };
+    }
     match live {
         Some((client, unit)) => {
             let class = format!("{class} is-live");
